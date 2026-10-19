@@ -150,6 +150,12 @@ def make_router(settings, store, pipeline):
             path.unlink(missing_ok=True)
             raise
 
+    @router.delete("/sessions/{session_id}/resources/{resource_id}")
+    def delete_resource(session_id: str, resource_id: str):
+        return public_session(
+            store.delete_resource(session_id, resource_id), store.jobs_for(session_id)
+        )
+
     @router.get("/sessions/{session_id}/resources")
     def resources(session_id: str):
         session = store.get_session(session_id)

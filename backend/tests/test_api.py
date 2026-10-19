@@ -126,3 +126,52 @@ def test_failed_full_sync_retains_previous_catalog(tmp_path, monkeypatch):
         monkeypatch.setattr(KnowledgeLibrary, "synchronize", fail)
         assert client.post("/api/library/sync").status_code == 400
         assert client.get("/api/library").json() == saved
+
+
+def test_delete_uploaded_resource_removes_active_sources_only(tmp_path):
+    app = create_app(Settings(data_dir=tmp_path))
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions", json={}).json()["id"]
+        source = client.post(
+            f"/api/sessions/{sid}/resources",
+            files={"file": ("教材.txt", "保留历史原文".encode(), "text/plain")},
+        ).json()
+        store = app.state.store
+
+        def seed(s):
+            s["sources"] = [source, {"id": "kb-hit", "evidence": "知识库命中"}]
+            s["versions"] = [{"id": "v1", "report": {}, "sources": [source]}]
+
+        store.update_session(sid, seed)
+        response = client.delete(f"/api/sessions/{sid}/resources/{source['id']}")
+        assert response.status_code == 200
+        current = response.json()
+        assert current["resources"] == []
+        assert [s["id"] for s in current["sources"]] == ["kb-hit"]
+        assert current["versions"][0]["sources"] == [source]
+        assert client.delete(f"/api/sessions/{sid}/resources/kb-hit").status_code == 404
+        assert (
+            client.delete(f"/api/sessions/{sid}/resources/{source['id']}").status_code
+            == 404
+        )
+        other = client.post("/api/sessions", json={}).json()["id"]
+        assert (
+            client.delete(f"/api/sessions/{other}/resources/kb-hit").status_code == 404
+        )
+
+
+def test_deleting_resource_during_generation_is_rejected(tmp_path):
+    app = create_app(Settings(data_dir=tmp_path))
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions", json={}).json()["id"]
+        source = client.post(
+            f"/api/sessions/{sid}/resources",
+            files={"file": ("教材.txt", b"evidence", "text/plain")},
+        ).json()
+        app.state.store.create_job(sid, {"kind": "generation", "prompt": "生成"})
+        response = client.delete(f"/api/sessions/{sid}/resources/{source['id']}")
+        assert response.status_code == 409
+        assert (
+            client.get(f"/api/sessions/{sid}").json()["resources"][0]["id"]
+            == source["id"]
+        )

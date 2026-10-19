@@ -198,6 +198,15 @@ export default function App() {
     await api(`/sessions/${s.id}/resources`, { method: "POST", body: form });
     setSession(await api<Session>("/sessions/" + s.id));
   };
+  const deleteResource = async (resourceId: string) => {
+    if (!session) return;
+    setSession(
+      await api<Session>(`/sessions/${session.id}/resources/${resourceId}`, {
+        method: "DELETE",
+      }),
+    );
+    setNotice("已删除本课资料，后续生成不再使用；历史版本保留原来源。");
+  };
   const review = async (source: Source, note: string, verified: boolean) => {
     if (!session) return;
     setSession(
@@ -474,6 +483,7 @@ export default function App() {
       {(modal === "resources" || modal === "recall") && (
         <Resources
           recall={modal === "recall"}
+          onDelete={deleteResource}
           sources={session?.sources || []}
           resources={session?.resources || []}
           onUpload={upload}

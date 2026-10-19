@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   LoaderCircle,
   ChevronDown,
+  Trash2,
 } from "lucide-react";
 import type { Source } from "../api";
 import Modal from "./Modal";
@@ -23,6 +24,7 @@ export default function Resources({
   resources,
   onUpload,
   onReview,
+  onDelete,
   onClose,
   busy,
   snapshot = false,
@@ -33,6 +35,7 @@ export default function Resources({
   resources: Source[];
   onUpload: (f: File, category: string) => Promise<void>;
   onReview: (s: Source, note: string, verified: boolean) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
   onClose: () => void;
   busy: boolean;
   snapshot?: boolean;
@@ -164,6 +167,11 @@ export default function Resources({
               onReview={onReview}
               busy={busy}
               snapshot={snapshot}
+              onDelete={
+                !snapshot && resources.some((r) => r.id === source.id)
+                  ? onDelete
+                  : undefined
+              }
             />
           ))
         ) : (
@@ -193,8 +201,10 @@ export function SourceCard({
   busy,
   snapshot,
   library = false,
+  onDelete,
 }: {
   library?: boolean;
+  onDelete?: (id: string) => Promise<void>;
   source: Source;
   onReview: (s: Source, n: string, v: boolean) => Promise<void>;
   busy: boolean;
@@ -203,7 +213,8 @@ export function SourceCard({
   const [open, setOpen] = useState(false),
     [note, setNote] = useState(source.review_note || ""),
     [working, setWorking] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [deleteError, setDeleteError] = useState("");
   return (
     <div className="source-card">
       <button
@@ -223,6 +234,38 @@ export function SourceCard({
         </span>
         <ChevronDown size={16} className={open ? "flipped" : ""} />
       </button>
+      {onDelete && !snapshot && (
+        <div className="source-actions">
+          <button
+            className="button secondary small delete-resource"
+            aria-label={`删除资料 ${source.title}`}
+            disabled={busy || working}
+            onClick={async () => {
+              setWorking(true);
+              setDeleteError("");
+              try {
+                await onDelete(source.id);
+              } catch (e) {
+                setDeleteError((e as Error).message);
+              } finally {
+                setWorking(false);
+              }
+            }}
+          >
+            {working ? (
+              <LoaderCircle size={15} className="spin" />
+            ) : (
+              <Trash2 size={15} />
+            )}{" "}
+            删除
+          </button>
+          {deleteError && (
+            <p className="inline-error" role="alert">
+              {deleteError}
+            </p>
+          )}
+        </div>
+      )}
       {open && (
         <div className="source-details">
           <SourceEvidence text={source.evidence} />

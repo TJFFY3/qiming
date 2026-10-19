@@ -98,6 +98,28 @@ class Store:
             self._write(db, "sessions", value)
         return value
 
+    def delete_resource(self, session_id, resource_id):
+        # Share the job-creation transaction lock so generation cannot race deletion.
+        with self.connection() as db:
+            session = self._read(db, "sessions", session_id)
+            jobs = db.execute("SELECT data FROM jobs WHERE session_id=?", (session_id,))
+            if any(
+                json.loads(row[0])["status"] in ("queued", "running") for row in jobs
+            ):
+                raise Conflict("任务执行中，请完成后删除资料")
+            if not any(r["id"] == resource_id for r in session["resources"]):
+                raise KeyError("本课上传资料不存在")
+            session["resources"] = [
+                r for r in session["resources"] if r["id"] != resource_id
+            ]
+            session["sources"] = [
+                r for r in session["sources"] if r["id"] != resource_id
+            ]
+            # Keep saved versions and their original upload files for historical traceability.
+            session["updated_at"] = now()
+            self._write(db, "sessions", session)
+        return session
+
     def create_job(self, session_id: str, payload: dict) -> dict:
         with self.connection() as db:
             session = self._read(db, "sessions", session_id)

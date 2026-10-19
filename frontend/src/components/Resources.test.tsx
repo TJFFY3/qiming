@@ -109,24 +109,22 @@ test("large files expose later chunks without truncation", async () => {
   }));
   vi.stubGlobal(
     "fetch",
-    vi
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          synced_at: "2026-10-19",
-          chunk_count: 21,
-          documents: [
-            {
-              id: "book",
-              title: "教材.pdf",
-              dataset_name: "教材库",
-              kind: "document",
-              chunks,
-            },
-          ],
-        }),
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        synced_at: "2026-10-19",
+        chunk_count: 21,
+        documents: [
+          {
+            id: "book",
+            title: "教材.pdf",
+            dataset_name: "教材库",
+            kind: "document",
+            chunks,
+          },
+        ],
       }),
+    }),
   );
   render(
     <Resources
@@ -144,4 +142,37 @@ test("large files expose later chunks without truncation", async () => {
   fireEvent.click(screen.getByRole("button", { name: /片段 21/ }));
   expect(screen.getByText("教材正文 21")).toBeTruthy();
   vi.unstubAllGlobals();
+});
+
+test("uploaded files can be deleted with visible failure feedback", async () => {
+  const remove = vi.fn().mockRejectedValue(new Error("删除失败，请重试"));
+  render(
+    <Resources
+      recall
+      sources={[]}
+      resources={[
+        {
+          id: "upload",
+          title: "上传教材.txt",
+          category: "textbook",
+          locator: "上传原文",
+          evidence: "内容",
+          verified: false,
+        },
+      ]}
+      onUpload={vi.fn()}
+      onReview={vi.fn()}
+      onDelete={remove}
+      onClose={() => {}}
+      busy={false}
+    />,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "删除资料 上传教材.txt" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveProperty(
+    "textContent",
+    "删除失败，请重试",
+  );
+  expect(remove).toHaveBeenCalledWith("upload");
 });

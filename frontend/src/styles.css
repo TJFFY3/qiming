@@ -1992,3 +1992,17 @@ legend {
   margin: 16px auto 0;
   display: flex;
 }
+.source-actions {
+  padding: 0 18px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.delete-resource {
+  color: #c33b38;
+}
+.delete-resource:hover:not(:disabled) {
+  background: #fff1f0;
+  border-color: #f1bebc;
+}
