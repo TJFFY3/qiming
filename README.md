@@ -4,7 +4,7 @@ React + FastAPI 本地应用，实现备课输入、优化提示、FastGPT 知�
 
 ## 启动
 
-需要 Python 3.11+ 和 Node.js 22+。本机默认 `python3` 是3.9，开发验证使用 `python3.12`。
+需要 Python 3.11+ 和 Node.js 22.12+。本机默认 `python3` 是3.9，开发验证使用 `python3.12`。
 
 ```sh
 cd /Users/sealos/Desktop/qiming
@@ -22,21 +22,22 @@ npm --prefix frontend run build
 
 ## 直接通过代码配置
 
-编辑 `backend/app/config.py` 中 `Settings` 默认值，不使用环境变量，没有单独的配置页面。`config.py` 已被 Git 忽略，仓库只保存无凭据的 `config.example.py`。
+编辑 `backend/app/config.py` 末尾的 `settings = Settings(...)` 代码参数，不使用环境变量，没有单独的配置页面。`config.py` 已被 Git 忽略，仓库只保存无凭据的 `config.example.py`。
 
 ```python
-fastgpt_url: str = 'https://你的FastGPT域名'  # 也接受结尾 /api
-fastgpt_key: str = '真实知识库API密钥'
-datasets: list[dict] = field(default_factory=lambda: [
-    {'id': '教材知识库ID', 'category': 'textbook', 'name': '人教版化学教材'},
-    {'id': '教师用书知识库ID', 'category': 'teacher_book', 'name': '教师用书'},
-])
-model_url: str = 'https://模型服务域名/v1'
-model_key: str = '真实模型API密钥'
-model: str = '实际模型名称'
+settings = Settings(
+    fastgpt_url='https://你的FastGPT域名/api',
+    fastgpt_key='真实API密钥',
+    datasets=[
+        {'id': '知识库或文件夹ID', 'type': 'folder', 'category': 'reference', 'name': '教学资料'},
+        # 独立教材库：{'id': '教材知识库ID', 'type': 'dataset', 'category': 'textbook', 'name': '教材'}
+    ],
+    model_provider='fastgpt',
+    fastgpt_app_id='实际应用ID',
+)
 ```
 
-FastGPT 检索调用官方 `/api/core/dataset/searchTest`。知识库密钥必须具有相应权限，不能假定应用对话密钥拥有知识库权限。模型调用兼容的 `/chat/completions` 接口，需要支持 `response_format=json_object`。FastGPT 基础服务本身不一定提供通用模型接口，因此单独填写实际模型服务地址和密钥；可复用真实支持的网关。凭据只在服务端使用。
+FastGPT 检索调用官方 `/api/core/dataset/searchTest`。知识库密钥必须具有相应权限，不能假定应用对话密钥拥有知识库权限。当前已接入用户提供的 FastGPT 应用，以 `appId` 调用 `/api/v1/chat/completions`，模型由工作流控制，完整结构要求作为任务输入传入。也可将 `model_provider` 改为 `openai`，填写 `model_url`、`model_key` 和 `model`，调用兼容接口（需支持 `response_format=json_object`）。凭据只在服务端使用。
 
 可在代码中调整 `search_mode`（默认 mixedRecall）、`search_limit`（6000 tokens）、`similarity`（0.2）、`using_rerank`（默认 false）和 `timeout`（120秒）。`data_dir` 默认为项目下 `data/`。
 
@@ -49,7 +50,9 @@ FastGPT 检索调用官方 `/api/core/dataset/searchTest`。知识库密钥必�
 5. 继续对话进行修改。普通修改使用稳定块 ID 和哈希保护的局部补丁；改标题、目标或章节结构使用完整结构修订。每次产生独立版本，历史版本可查看和下载；只允许基于最新版本提交修改。
 6. 来源核对不会回写已保存版本。正式生成要求至少一份核对过的教材/教师用书且无未解决缺口或冲突；来源、化学内容和 Word/WPS 视觉仍需教师复核。
 
-未配置 FastGPT 时，如有上传原文，可走本地参考资料生成；模型服务仍需配置。已配置 FastGPT 的检索错误不会被上传文件静默掩盖。
+知识库条目的 `type=folder` 会读取子库；目录和搜索响应均兼容 `data.list` 格式。混合模板和样例的文件夹使用 `category=reference`，不会冒充教材来源。
+
+未配置 FastGPT 时，如有上传原文，可走本地参考资料生成；生成模型仍需配置。已配置 FastGPT 的检索错误不会被上传文件静默掩盖。
 
 ## 结构
 
@@ -67,7 +70,7 @@ FastGPT 检索调用官方 `/api/core/dataset/searchTest`。知识库密钥必�
 ./scripts/check.sh
 ```
 
-后端测试包含 HTTP 适配、来源核对/缺口、真实 DOCX 生成与按块修改、旧版本冲突、下载、上传、重启恢复等。集成测试只替换远程 HTTP 服务，实际执行 schema 校验和 Word 生成。模拟服务通过不等同真实 FastGPT 或模型联调，详见 `docs/verification.md`。
+后端测试包含 HTTP 适配、来源核对/缺口、真实 DOCX 生成与按块修改、旧版本冲突、下载、上传、重启恢复等。集成测试只替换远程 HTTP 服务，实际执行 schema 校验和 Word 生成。已通过真实 FastGPT 检索、应用生成和连续修改联调；模拟回归与真实联调分别记录，详见 `docs/verification.md`。
 
 本系统不自动认证化学答案、教学难度或教材页码。Word EQ 域、表格分页及字体替换需在 Word/WPS 检查；结构检查通过不等于可直接印刷。
 
