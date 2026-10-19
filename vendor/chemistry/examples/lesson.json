@@ -1,0 +1,354 @@
+{
+  "title": "格式测试样例",
+  "sources": [],
+  "outline": {
+    "title": "格式测试课时",
+    "goals": [
+      "通过格式样例，能够识别上下标和答题区域。"
+    ],
+    "sections": [
+      {
+        "title": "化学符号格式",
+        "paragraphs": [
+          "系数保持正常：2[H2O]。离子使用域：[SO4^2-]、[Fe^3+]。",
+          "填写观察结果：________。",
+          [
+            {
+              "text": "[H2] + [Cl2] "
+            },
+            {
+              "text": "点燃",
+              "condition": true
+            },
+            {
+              "text": " 2[HCl]"
+            }
+          ]
+        ]
+      }
+    ],
+    "thinking": [
+      "如何区分系数与化学式内数字？"
+    ]
+  },
+  "paper": {
+    "title": "格式测试课时",
+    "choice": [
+      {
+        "stem": "格式测试题1：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题2：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题3：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题4：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题5：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题6：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题7：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题8：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题9：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题10：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题11：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题12：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题13：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      },
+      {
+        "stem": "格式测试题14：比较 [H2O] 与 [CO2] 的书写格式。",
+        "options": [
+          "选项甲",
+          "选项乙",
+          "选项丙",
+          "选项丁"
+        ],
+        "answer": "A",
+        "explanation": "此数据只验证排版管线，不是正式试题。",
+        "score": 4,
+        "minutes": 1.5,
+        "difficulty": "基础",
+        "source_ids": []
+      }
+    ],
+    "written": [
+      {
+        "stem": "写出 [Na+]、[Cl-] 并说明排版差异。",
+        "answer": "[Na+]、[Cl-]。",
+        "explanation": "这是格式测试，不能作为正式教学试题。",
+        "score": 44,
+        "minutes": 11,
+        "difficulty": "中档",
+        "work_lines": 3,
+        "source_ids": []
+      }
+    ],
+    "optional": [
+      {
+        "stem": "选做格式测试1：比较 [SO4^2-] 与 [H2O]。",
+        "answer": "格式测试答案",
+        "explanation": "仅验证答案卷。",
+        "minutes": 3,
+        "difficulty": "较难",
+        "work_lines": 2,
+        "source_ids": []
+      },
+      {
+        "stem": "选做格式测试2：比较 [SO4^2-] 与 [H2O]。",
+        "answer": "格式测试答案",
+        "explanation": "仅验证答案卷。",
+        "minutes": 3,
+        "difficulty": "较难",
+        "work_lines": 2,
+        "source_ids": []
+      }
+    ]
+  },
+  "slides": [
+    {
+      "title": "格式测试任务",
+      "stage": "启",
+      "paragraphs": [
+        "本样例仅验证文件生成流程。",
+        "比较 2[H2O] 和 [SO4^2-] 的上下标。"
+      ]
+    },
+    {
+      "title": "先想一想",
+      "stage": "探",
+      "paragraphs": [
+        "哪些数字是系数？",
+        "哪些数字是化学式下标？"
+      ]
+    },
+    {
+      "title": "化学式",
+      "stage": "析",
+      "paragraphs": [
+        "[H2O]、[CO2]、[Ca(OH)2]"
+      ]
+    },
+    {
+      "title": "离子电荷",
+      "stage": "析",
+      "paragraphs": [
+        "[Fe^3+]、[SO4^2-]、[Na+]、[Cl-]"
+      ]
+    },
+    {
+      "title": "系数与下标",
+      "stage": "析",
+      "paragraphs": [
+        "2[H2O] 中的系数保持正常字号。",
+        [
+          {
+            "text": "[H2] + [Cl2] "
+          },
+          {
+            "text": "点燃",
+            "condition": true
+          },
+          {
+            "text": " 2[HCl]"
+          }
+        ]
+      ]
+    },
+    {
+      "title": "知识小结",
+      "stage": "辩—预设展示",
+      "paragraphs": [
+        "化学式内数字使用下标。",
+        "PPT 离子电荷使用上标。"
+      ]
+    },
+    {
+      "title": "课堂练习",
+      "stage": "辩—预设展示",
+      "paragraphs": [
+        "请指出 [H2O] 中的下标。"
+      ]
+    },
+    {
+      "title": "梳理内化",
+      "stage": "辩—梳理内化",
+      "paragraphs": [
+        "请教师检查字体、分页和化学符号显示。"
+      ]
+    }
+  ]
+}

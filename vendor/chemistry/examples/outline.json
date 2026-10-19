@@ -1,0 +1,114 @@
+{
+  "title": "氧化还原反应第1课时（格式测试）",
+  "sources": [],
+  "source_gaps": [
+    "格式测试未附教材证据，不可直接用于授课"
+  ],
+  "outline": {
+    "title": "氧化还原反应第1课时（格式测试）",
+    "goals": [
+      "通过比较反应实例，能够说明元素化合价升降与氧化还原反应的关系。"
+    ],
+    "sections": [
+      {
+        "id": "task-1",
+        "title": "任务一：观察与记录",
+        "blocks": [
+          {
+            "id": "question-1",
+            "type": "paragraph",
+            "content": "标出表中各元素反应前后的化合价，记录发生变化的元素。"
+          },
+          {
+            "id": "table-1",
+            "type": "table",
+            "headers": [
+              "反应",
+              "变化的元素",
+              "化合价变化"
+            ],
+            "rows": [
+              [
+                "2[Mg] + [O2] = 2[MgO]",
+                null,
+                null
+              ]
+            ],
+            "widths_cm": [
+              8,
+              3,
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": "task-2",
+        "title": "任务二：比较与归纳",
+        "blocks": [
+          {
+            "id": "question-2",
+            "type": "paragraph",
+            "content": "比较上述元素化合价变化，描述升高与降低的关系。"
+          },
+          {
+            "id": "table-2",
+            "type": "table",
+            "headers": [
+              "观察对象",
+              "化合价升高或降低",
+              "你的判断依据"
+            ],
+            "rows": [
+              [
+                "镁",
+                null,
+                null
+              ],
+              [
+                "氧",
+                null,
+                null
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "id": "task-3",
+        "title": "任务三：辨析与迁移",
+        "blocks": [
+          {
+            "id": "table-3",
+            "type": "table",
+            "headers": [
+              "反应",
+              "有无元素化合价变化",
+              "是否为氧化还原反应"
+            ],
+            "rows": [
+              [
+                "[HCl] + [NaOH] = [NaCl] + [H2O]",
+                null,
+                null
+              ],
+              [
+                "2[Mg] + [O2] = 2[MgO]",
+                null,
+                null
+              ]
+            ]
+          },
+          {
+            "id": "question-3",
+            "type": "paragraph",
+            "content": "写出你的判断步骤，并与同桌互查。"
+          }
+        ]
+      }
+    ],
+    "thinking": [
+      "判断氧化还原反应时，需要逐一比较哪些信息？"
+    ]
+  }
+}
