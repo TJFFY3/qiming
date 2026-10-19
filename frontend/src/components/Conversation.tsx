@@ -163,8 +163,7 @@ export default function Conversation({
                 <div className="version-bar">
                   <span>
                     <Focus size={15} />
-                    当前版本 ·{" "}
-                    {version.report.draft ? "待核验草案" : "来源已核对"}
+                    当前版本 · {version.number}
                   </span>
                   <select
                     aria-label="选择版本"

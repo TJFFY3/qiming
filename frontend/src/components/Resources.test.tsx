@@ -20,7 +20,6 @@ test("historical source snapshot displays original gaps and cannot be edited", (
       ]}
       resources={[]}
       onUpload={vi.fn()}
-      onReview={vi.fn()}
       onClose={() => {}}
       busy={false}
     />,
@@ -83,7 +82,6 @@ test("library shows all knowledge chunks and PPT original rather than session re
       ]}
       resources={[]}
       onUpload={vi.fn()}
-      onReview={vi.fn()}
       onClose={() => {}}
       busy={false}
     />,
@@ -131,7 +129,6 @@ test("large files expose later chunks without truncation", async () => {
       sources={[]}
       resources={[]}
       onUpload={vi.fn()}
-      onReview={vi.fn()}
       onClose={() => {}}
       busy={false}
     />,
@@ -161,7 +158,6 @@ test("uploaded files can be deleted with visible failure feedback", async () => 
         },
       ]}
       onUpload={vi.fn()}
-      onReview={vi.fn()}
       onDelete={remove}
       onClose={() => {}}
       busy={false}
@@ -175,4 +171,39 @@ test("uploaded files can be deleted with visible failure feedback", async () => 
     "删除失败，请重试",
   );
   expect(remove).toHaveBeenCalledWith("upload");
+});
+
+test("source cards show evidence without verification labels or review controls", () => {
+  render(
+    <Resources
+      recall
+      sources={[
+        {
+          id: "unverified",
+          title: "来源A",
+          category: "textbook",
+          locator: "片段1",
+          evidence: "证据A",
+          verified: false,
+        },
+        {
+          id: "verified",
+          title: "来源B",
+          category: "textbook",
+          locator: "片段2",
+          evidence: "证据B",
+          verified: true,
+        },
+      ]}
+      resources={[]}
+      onUpload={vi.fn()}
+      onClose={() => {}}
+      busy={false}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /来源A/ }));
+  expect(screen.getByText("证据A")).toBeTruthy();
+  expect(
+    screen.queryAllByText(/待核对|已核对|核对记录|撤销核对|我已核对原文/),
+  ).toHaveLength(0);
 });

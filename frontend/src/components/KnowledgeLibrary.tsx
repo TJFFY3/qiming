@@ -156,7 +156,6 @@ function DocumentCard({ document: d }: { document: Document }) {
               library
               snapshot
               busy={false}
-              onReview={async () => {}}
             />
           ))}
           {limit < d.chunks.length && (

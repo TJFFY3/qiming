@@ -3,7 +3,6 @@ import {
   Upload,
   BookOpen,
   FileText,
-  CheckCircle2,
   LoaderCircle,
   ChevronDown,
   Trash2,
@@ -11,6 +10,7 @@ import {
 import type { Source } from "../api";
 import Modal from "./Modal";
 import KnowledgeLibrary from "./KnowledgeLibrary";
+import { sourceNotes } from "../sourceDisplay";
 import SourceEvidence from "./SourceEvidence";
 const categories: Record<string, string> = {
   textbook: "教材",
@@ -23,7 +23,6 @@ export default function Resources({
   sources,
   resources,
   onUpload,
-  onReview,
   onDelete,
   onClose,
   busy,
@@ -34,7 +33,6 @@ export default function Resources({
   sources: Source[];
   resources: Source[];
   onUpload: (f: File, category: string) => Promise<void>;
-  onReview: (s: Source, note: string, verified: boolean) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   onClose: () => void;
   busy: boolean;
@@ -42,6 +40,7 @@ export default function Resources({
   recall?: boolean;
   sourceIssues?: string[];
 }) {
+  const notes = sourceNotes(sourceIssues);
   const [category, setCategory] = useState("textbook");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -137,11 +136,11 @@ export default function Resources({
           </div>
         )}
         {!snapshot && !recall && <KnowledgeLibrary />}
-        {sourceIssues.length > 0 && (
+        {notes.length > 0 && (
           <div className="source-issues">
-            <strong>本版本资料缺口与待核验项</strong>
+            <strong>本版本资料说明</strong>
             <ul>
-              {sourceIssues.map((issue, i) => (
+              {notes.map((issue, i) => (
                 <li key={i}>{issue}</li>
               ))}
             </ul>
@@ -154,17 +153,13 @@ export default function Resources({
         )}
         <div className="source-list-header">
           <h3>{snapshot || recall ? "本次命中片段" : "本课上传资料"}</h3>
-          <span>
-            {all.length} 份来源 · {all.filter((x) => x.verified).length}{" "}
-            份已核对
-          </span>
+          <span>{all.length} 份来源</span>
         </div>
         {all.length ? (
           all.map((source) => (
             <SourceCard
               key={source.id}
               source={source}
-              onReview={onReview}
               busy={busy}
               snapshot={snapshot}
               onDelete={
@@ -185,8 +180,8 @@ export default function Resources({
       <footer className="modal-footer">
         <span className="field-hint">
           {snapshot
-            ? "此处展示生成时的来源状态，不随资料库核对改变。"
-            : "来源核对不会改变已保存版本；重新生成后生效。"}
+            ? "来源快照保留生成时的资料，不随后续上传或删除改变。"
+            : "本课上传资料用于后续生成，历史版本保留原引用。"}
         </span>
         <button className="button dark" onClick={onClose}>
           完成
@@ -197,7 +192,6 @@ export default function Resources({
 }
 export function SourceCard({
   source,
-  onReview,
   busy,
   snapshot,
   library = false,
@@ -206,14 +200,11 @@ export function SourceCard({
   library?: boolean;
   onDelete?: (id: string) => Promise<void>;
   source: Source;
-  onReview: (s: Source, n: string, v: boolean) => Promise<void>;
   busy: boolean;
   snapshot: boolean;
 }) {
   const [open, setOpen] = useState(false),
-    [note, setNote] = useState(source.review_note || ""),
     [working, setWorking] = useState(false),
-    [error, setError] = useState(""),
     [deleteError, setDeleteError] = useState("");
   return (
     <div className="source-card">
@@ -229,9 +220,6 @@ export function SourceCard({
             {categories[source.category] || "参考资料"} · {source.locator}
           </small>
         </div>
-        <span className={source.verified ? "verified-tag" : "draft-tag"}>
-          {source.verified ? "已核对" : "待核对"}
-        </span>
         <ChevronDown size={16} className={open ? "flipped" : ""} />
       </button>
       {onDelete && !snapshot && (
@@ -269,48 +257,6 @@ export function SourceCard({
       {open && (
         <div className="source-details">
           <SourceEvidence text={source.evidence} />
-          {library ? (
-            <p className="field-hint">知识库原始片段，教学引用仍需核对。</p>
-          ) : snapshot ? (
-            <p className="field-hint">
-              核对记录：{source.review_note || "本版本尚无核对记录"}
-            </p>
-          ) : (
-            <>
-              <label>
-                核对记录
-                <textarea
-                  maxLength={1000}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="查看原文件后，记录核对的教材版本、位置与结论"
-                />
-              </label>
-              {error && <p className="inline-error">{error}</p>}
-              <button
-                className="button secondary small"
-                disabled={busy || working || !note.trim()}
-                onClick={async () => {
-                  setWorking(true);
-                  try {
-                    await onReview(source, note, !source.verified);
-                    setError("");
-                  } catch (e) {
-                    setError((e as Error).message);
-                  } finally {
-                    setWorking(false);
-                  }
-                }}
-              >
-                {working ? (
-                  <LoaderCircle size={15} className="spin" />
-                ) : (
-                  <CheckCircle2 size={15} />
-                )}{" "}
-                {source.verified ? "撤销核对" : "我已核对原文"}
-              </button>
-            </>
-          )}
         </div>
       )}
     </div>

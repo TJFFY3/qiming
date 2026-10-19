@@ -23,7 +23,6 @@ import {
   type Session,
   type SessionSummary,
   type Job,
-  type Source,
 } from "./api";
 import { applyOptimization, ensureOptimization } from "./prompt";
 import Composer from "./components/Composer";
@@ -219,15 +218,6 @@ export default function App() {
       }),
     );
     setNotice("已删除本课资料，后续生成不再使用；历史版本保留原来源。");
-  };
-  const review = async (source: Source, note: string, verified: boolean) => {
-    if (!session) return;
-    setSession(
-      await post<Session>(
-        `/sessions/${session.id}/sources/${source.id}/review`,
-        { note, verified },
-      ),
-    );
   };
   const newSession = () => {
     if (busy) {
@@ -455,7 +445,7 @@ export default function App() {
               className="text-button agent-source-review"
               onClick={() => setModal("recall")}
             >
-              <Library size={16} /> 核对本课命中片段（{session.sources.length}）
+              <Library size={16} /> 本课引用来源（{session.sources.length}）
             </button>
           )}
           {session && (
@@ -510,7 +500,6 @@ export default function App() {
           sources={session?.sources || []}
           resources={session?.resources || []}
           onUpload={upload}
-          onReview={review}
           onClose={closeModal}
           busy={busy}
         />
@@ -522,7 +511,6 @@ export default function App() {
           resources={[]}
           sourceIssues={version.report.source_issues || []}
           onUpload={upload}
-          onReview={review}
           onClose={closeModal}
           busy={busy}
         />

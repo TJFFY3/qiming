@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Download, FileText, CheckCircle2, ExternalLink } from "lucide-react";
+import { sourceNotes, sourceTitle } from "../sourceDisplay";
 import { fileUrl, type RichText, type Run, type Version } from "../api";
 function formula(value: string): ReactNode {
   const charge = value.match(/(?:\^([0-9]*[+-])|([+-]))$/);
@@ -77,6 +78,7 @@ export default function OutlinePreview({
   sessionId: string;
   onSources: () => void;
 }) {
+  const notes = sourceNotes(version.report.source_issues);
   return (
     <article className="document-card">
       <header className="document-toolbar">
@@ -99,9 +101,6 @@ export default function OutlinePreview({
         </div>
       </header>
       <div className="document-status">
-        <span className={version.report.draft ? "draft-tag" : "verified-tag"}>
-          {version.report.draft ? "待核验草案" : "来源已核对"}
-        </span>
         <span>
           <CheckCircle2 size={14} />
           结构检查通过
@@ -111,23 +110,18 @@ export default function OutlinePreview({
           个教学表格
         </span>
       </div>
-      {!!version.report.source_issues?.length && (
+      {!!notes.length && (
         <details className="source-issues">
-          <summary>
-            资料缺口与待核验项（{version.report.source_issues.length}）
-          </summary>
+          <summary>资料说明（{notes.length}）</summary>
           <ul>
-            {version.report.source_issues.map((item, i) => (
+            {notes.map((item, i) => (
               <li key={i}>{item}</li>
             ))}
           </ul>
         </details>
       )}
       <div className="paper-preview">
-        <h2>
-          {version.report.draft ? "待核验 · " : ""}
-          {version.content.title}
-        </h2>
+        <h2>{sourceTitle(version.content.title)}</h2>
         <p className="student-line">
           班级 __________　姓名 __________　小组 __________
         </p>
