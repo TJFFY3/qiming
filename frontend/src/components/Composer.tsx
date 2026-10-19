@@ -34,9 +34,7 @@ export default function Composer({
     "第一节 物质的分类及转化",
     "钠及其化合物",
   ];
-  const periods = ["第一课时", "第二课时", "第三课时", "复习课"];
-  const widest = (values: string[]) =>
-    values.reduce((a, b) => (a.length >= b.length ? a : b), "");
+  const periods = ["第一课时", "第二课时"];
   return (
     <div className={"composer " + (conversation ? "compact" : "")}>
       {!conversation && (
@@ -44,26 +42,23 @@ export default function Composer({
           <span>基于</span>
           <label className="chapter-chip">
             <BookOpen size={23} />
-            <span className="suggestion-input">
-              <span className="suggestion-size" aria-hidden="true">
-                {widest([...chapters, settings.chapter])}
-              </span>
-              <input
-                aria-label="章节 / 知识点"
-                list="chapters"
-                value={settings.chapter}
-                maxLength={200}
-                onChange={(e) =>
-                  onSettings({ ...settings, chapter: e.target.value })
-                }
-              />
-            </span>
+            <select
+              aria-label="章节 / 知识点"
+              value={settings.chapter}
+              onChange={(e) =>
+                onSettings({ ...settings, chapter: e.target.value })
+              }
+            >
+              {!chapters.includes(settings.chapter) && (
+                <option value={settings.chapter}>{settings.chapter}</option>
+              )}
+              {chapters.map((chapter) => (
+                <option key={chapter} value={chapter}>
+                  {chapter}
+                </option>
+              ))}
+            </select>
           </label>
-          <datalist id="chapters">
-            {chapters.map((chapter) => (
-              <option key={chapter}>{chapter}</option>
-            ))}
-          </datalist>
           <span>生成</span>
           <label className="period-chip">
             <select
@@ -73,9 +68,6 @@ export default function Composer({
                 onSettings({ ...settings, period: e.target.value })
               }
             >
-              {!periods.includes(settings.period) && (
-                <option value={settings.period}>{settings.period}</option>
-              )}
               {periods.map((period) => (
                 <option key={period} value={period}>
                   {period}

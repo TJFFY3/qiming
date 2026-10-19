@@ -64,7 +64,10 @@ export default function App() {
       api<Session>("/sessions/" + id)
         .then((s) => {
           setSession(s);
-          setSettings(s.settings);
+          setSettings({
+            ...s.settings,
+            period: s.settings.period === "第二课时" ? "第二课时" : "第一课时",
+          });
           const j = s.jobs.at(-1);
           setJob(j);
           if (s.versions.length || j) setPage("conversation");
@@ -185,7 +188,10 @@ export default function App() {
     try {
       const s = await api<Session>("/sessions/" + id);
       setSession(s);
-      setSettings(s.settings);
+      setSettings({
+        ...s.settings,
+        period: s.settings.period === "第二课时" ? "第二课时" : "第一课时",
+      });
       setJob(s.jobs.at(-1));
       setVersionId(s.versions.at(-1)?.id || "");
       setPage(s.jobs.length ? "conversation" : "home");

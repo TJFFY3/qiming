@@ -10,7 +10,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import Composer from "./Composer";
 import { defaultSettings } from "../api";
 afterEach(cleanup);
-test("chapter and period keep native suggestions without duplicate arrows", () => {
+test("chapter uses a native select and period offers exactly the first two lessons", () => {
   const change = vi.fn();
   render(
     <Composer
@@ -32,7 +32,14 @@ test("chapter and period keep native suggestions without duplicate arrows", () =
     expect.objectContaining({ period: "第二课时" }),
   );
   const chapter = screen.getByRole("combobox", { name: "章节 / 知识点" });
-  expect(chapter.getAttribute("list")).toBe("chapters");
+  expect(
+    within(chapter).getByRole("option", { name: "第一节 物质的分类及转化" }),
+  ).toBeTruthy();
+  expect(
+    within(period)
+      .getAllByRole("option")
+      .map((option) => option.textContent),
+  ).toEqual(["第一课时", "第二课时"]);
   fireEvent.change(chapter, { target: { value: "第一节 物质的分类及转化" } });
   expect(change).toHaveBeenCalledWith(
     expect.objectContaining({ chapter: "第一节 物质的分类及转化" }),

@@ -308,7 +308,7 @@ legend {
   color: #3969e6;
   padding: 10px 13px;
 }
-.chapter-chip input {
+.chapter-chip select {
   border: 0;
   background: transparent;
   color: #3969e6;
@@ -1456,7 +1456,7 @@ legend {
     padding: 8px;
     gap: 6px;
   }
-  .chapter-chip input {
+  .chapter-chip select {
     font-size: 13px;
   }
   .chapter-chip svg {
@@ -1995,7 +1995,7 @@ legend {
   border-color: #f1bebc;
 }
 
-/* Mirror text sizes editable native suggestion fields without a second arrow. */
+/* Use only the controls' native arrows; native options size to their full labels. */
 .chapter-chip,
 .period-chip {
   max-width: 100%;
@@ -2003,35 +2003,13 @@ legend {
 .chapter-chip > svg {
   flex-shrink: 0;
 }
-.suggestion-input {
-  display: grid;
-  min-width: 0;
-  font-size: 16px;
-}
-.chapter-chip .suggestion-input {
+.chapter-chip select {
+  padding: 0;
+  background: transparent;
   font-weight: 550;
+  max-width: 100%;
+  min-width: 0;
 }
-.suggestion-input > .suggestion-size,
-.suggestion-input > input {
-  grid-area: 1 / 1;
-  font: inherit;
-}
-.suggestion-size {
-  visibility: hidden;
-  white-space: pre;
-  padding-right: 1.75em;
-  pointer-events: none;
-}
-.suggestion-input > input {
-  width: 0;
-  min-width: 100%;
-}
-@media (max-width: 650px) {
-  .suggestion-input {
-    font-size: 13px;
-  }
-}
-
 .composer textarea.optimization-prompt {
   height: 380px;
 }
