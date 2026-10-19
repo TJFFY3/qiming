@@ -188,3 +188,80 @@ def test_noop_revision_retries_and_does_not_publish_version(tmp_path):
     assert len(store.get_session(s["id"])["versions"]) == 1
     assert len(calls) == 3
     assert "实际" in store.get_job(j["id"])["error"]
+
+
+def test_optimization_is_visible_in_stored_conversation_and_model_prompt(tmp_path):
+    store, session, pipeline = setup(tmp_path)
+    options = {
+        "scope": "仅第一课时",
+        "duration": "15 分钟",
+        "tasks": "3 个任务",
+        "difficulty": "基础为主",
+        "hints": "详细提示",
+        "focus": ["概念理解", "化学方程式"],
+        "extra": "学生基础较弱",
+    }
+    store.update_session(session["id"], lambda s: s["settings"].update(options=options))
+    captured = []
+
+    def model(messages):
+        captured.append(messages)
+        return copy.deepcopy(SAMPLE)
+
+    pipeline.model.generate_json = model
+    job = pipeline.start_generation(session["id"], {"prompt": "以生活情境导入"})
+    pipeline.run(job["id"])
+    assert store.get_job(job["id"])["status"] == "completed"
+    text = store.get_session(session["id"])["messages"][0]["content"]
+    for line in [
+        "学习范围：仅第一课时",
+        "自学用时：15 分钟",
+        "任务数量：3 个任务",
+        "内容难度：基础为主",
+        "提示详略：详细提示",
+        "本课重点：概念理解、化学方程式",
+        "补充要求：学生基础较弱",
+    ]:
+        assert line in text
+        assert line in captured[0][1]["content"]
+    assert text.count("【优化提示】") == 1
+
+
+def test_fastgpt_wire_prompt_contains_optimization_exactly_once(tmp_path):
+    import httpx
+    from backend.app.model_client import ModelClient
+
+    store, session, pipeline = setup(tmp_path)
+    settings = pipeline.settings
+    settings.model_provider = "fastgpt"
+    settings.fastgpt_app_id = "test-app"
+    settings.fastgpt_url = "https://fastgpt.test/api"
+    settings.fastgpt_key = "test-only-key"
+    store.update_session(
+        session["id"],
+        lambda s: s["settings"].update(
+            options={"duration": "20 分钟", "focus": ["化学方程式"]}
+        ),
+    )
+    sent = []
+
+    def transport(request):
+        body = json.loads(request.content)
+        sent.append(body["messages"][0]["content"])
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": json.dumps(SAMPLE, ensure_ascii=False)}}
+                ]
+            },
+        )
+
+    pipeline.model = ModelClient(settings, httpx.MockTransport(transport))
+    job = pipeline.start_generation(session["id"], {"prompt": "请生成导学案"})
+    pipeline.run(job["id"])
+    assert store.get_job(job["id"])["status"] == "completed"
+    assert len(sent) == 1
+    assert "自学用时：20 分钟" in sent[0]
+    assert "本课重点：化学方程式" in sent[0]
+    assert sent[0].count("【优化提示】") == 1

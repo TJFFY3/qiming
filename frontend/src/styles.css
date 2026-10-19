@@ -2033,3 +2033,10 @@ legend {
     font-size: 13px;
   }
 }
+
+.composer textarea.optimization-prompt {
+  height: 380px;
+}
+.composer.compact textarea.optimization-prompt {
+  height: 240px;
+}

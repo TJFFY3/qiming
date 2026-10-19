@@ -1,11 +1,13 @@
 """SQLite JSON records; all read-modify-write operations use immediate transactions."""
 
+import copy
 import json
 import sqlite3
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from .prompting import ensure_optimization
 
 
 def now():
@@ -136,6 +138,13 @@ class Store:
                 or session["versions"][-1]["id"] != payload.get("base_version_id")
             ):
                 raise Conflict("当前版本已更新，请选择最新版本后重试")
+            payload = {
+                **payload,
+                "teacher_settings": copy.deepcopy(session["settings"]),
+            }
+            payload["prompt"] = ensure_optimization(
+                payload.get("prompt", ""), session["settings"].get("options")
+            )
             value = dict(
                 id=uuid.uuid4().hex,
                 session_id=session_id,

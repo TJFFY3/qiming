@@ -90,6 +90,9 @@ export default function Composer({
         </div>
       )}
       <textarea
+        className={
+          prompt.includes("【优化提示】") ? "optimization-prompt" : undefined
+        }
         aria-label={conversation ? "继续修改导学案" : "备课要求"}
         value={prompt}
         maxLength={8000}

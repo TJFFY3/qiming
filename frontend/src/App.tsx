@@ -25,6 +25,7 @@ import {
   type Job,
   type Source,
 } from "./api";
+import { applyOptimization, ensureOptimization } from "./prompt";
 import Composer from "./components/Composer";
 import OptimizeDialog from "./components/OptimizeDialog";
 import Conversation from "./components/Conversation";
@@ -130,8 +131,14 @@ export default function App() {
       setError("请填写章节 / 知识点");
       return;
     }
-    const instruction =
-      suggestion || prompt.trim() || "请根据本课内容生成一份导学案。";
+    const instruction = ensureOptimization(
+      suggestion || prompt.trim() || "请根据本课内容生成一份导学案。",
+      settings.options,
+    );
+    if (instruction.length > 8000) {
+      setError("提示词超过8000字，请精简补充要求或备课内容。");
+      return;
+    }
     if (
       page === "conversation" &&
       version &&
@@ -232,15 +239,25 @@ export default function App() {
   };
   const apply = (options: Options) => {
     setSettings((old) => ({ ...old, options }));
+    setPrompt((old) =>
+      applyOptimization(
+        old.trim() ||
+          (page === "conversation" && version
+            ? "请按以下优化要求调整当前导学案，保留未涉及内容。"
+            : "请根据本课内容生成一份导学案。"),
+        options,
+      ),
+    );
     setModal(null);
-    setNotice("优化要求已填入，本次生成时生效");
+    setNotice("优化要求已写入提示词，可查看和编辑后提交");
   };
   const optimized =
     JSON.stringify(settings.options) !==
     JSON.stringify(defaultSettings().options);
   const retry = () =>
     void submit(
-      session?.messages.filter((m) => m.role === "user").at(-1)?.content,
+      prompt.trim() ||
+        session?.messages.filter((m) => m.role === "user").at(-1)?.content,
       job?.kind || "generation",
       job?.base_version_id || undefined,
     );

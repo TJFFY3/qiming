@@ -102,6 +102,10 @@ test("optimization cancel preserves last applied options", async () => {
   fireEvent.click(screen.getByRole("button", { name: "优化提示" }));
   fireEvent.click(screen.getByRole("button", { name: "15 分钟" }));
   fireEvent.click(screen.getByRole("button", { name: "填入" }));
+  expect(
+    (screen.getByRole("textbox", { name: "备课要求" }) as HTMLTextAreaElement)
+      .value,
+  ).toContain("自学用时：15 分钟");
   fireEvent.click(screen.getByRole("button", { name: "优化提示" }));
   fireEvent.click(screen.getByRole("button", { name: "20 分钟" }));
   fireEvent.click(screen.getByRole("button", { name: "取消" }));
