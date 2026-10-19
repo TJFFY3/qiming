@@ -1788,11 +1788,12 @@ legend {
   border-radius: 8px;
   padding: 11px 9px;
 }
-.period-chip input {
+.period-chip select {
   color: inherit;
   background: transparent;
   border: 0;
-  font-size: 16px;
+  font: inherit;
+  padding: 0;
 }
 .source-issues {
   margin: 0 20px 15px;
@@ -1817,9 +1818,6 @@ legend {
 @media (max-width: 650px) {
   .period-chip {
     padding: 8px 5px;
-  }
-  .period-chip input {
-    font-size: 13px;
   }
   .source-issues {
     margin: 0 10px 10px;

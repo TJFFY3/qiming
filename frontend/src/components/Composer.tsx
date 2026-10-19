@@ -66,26 +66,23 @@ export default function Composer({
           </datalist>
           <span>生成</span>
           <label className="period-chip">
-            <span className="suggestion-input">
-              <span className="suggestion-size" aria-hidden="true">
-                {widest([...periods, settings.period])}
-              </span>
-              <input
-                aria-label="课时"
-                list="periods"
-                value={settings.period}
-                maxLength={100}
-                onChange={(e) =>
-                  onSettings({ ...settings, period: e.target.value })
-                }
-              />
-            </span>
+            <select
+              aria-label="课时"
+              value={settings.period}
+              onChange={(e) =>
+                onSettings({ ...settings, period: e.target.value })
+              }
+            >
+              {!periods.includes(settings.period) && (
+                <option value={settings.period}>{settings.period}</option>
+              )}
+              {periods.map((period) => (
+                <option key={period} value={period}>
+                  {period}
+                </option>
+              ))}
+            </select>
           </label>
-          <datalist id="periods">
-            {periods.map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </datalist>
           <span>导学案</span>
         </div>
       )}
