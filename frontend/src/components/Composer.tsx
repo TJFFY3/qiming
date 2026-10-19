@@ -28,6 +28,15 @@ export default function Composer({
   busy: boolean;
   conversation?: boolean;
 }) {
+  const chapters = [
+    "第三节 氧化还原反应",
+    "第二节 离子反应",
+    "第一节 物质的分类及转化",
+    "钠及其化合物",
+  ];
+  const periods = ["第一课时", "第二课时", "第三课时", "复习课"];
+  const widest = (values: string[]) =>
+    values.reduce((a, b) => (a.length >= b.length ? a : b), "");
   return (
     <div className={"composer " + (conversation ? "compact" : "")}>
       {!conversation && (
@@ -35,38 +44,45 @@ export default function Composer({
           <span>基于</span>
           <label className="chapter-chip">
             <BookOpen size={23} />
-            <input
-              aria-label="章节 / 知识点"
-              list="chapters"
-              value={settings.chapter}
-              maxLength={200}
-              onChange={(e) =>
-                onSettings({ ...settings, chapter: e.target.value })
-              }
-            />
-            <span className="chevron">⌄</span>
+            <span className="suggestion-input">
+              <span className="suggestion-size" aria-hidden="true">
+                {widest([...chapters, settings.chapter])}
+              </span>
+              <input
+                aria-label="章节 / 知识点"
+                list="chapters"
+                value={settings.chapter}
+                maxLength={200}
+                onChange={(e) =>
+                  onSettings({ ...settings, chapter: e.target.value })
+                }
+              />
+            </span>
           </label>
           <datalist id="chapters">
-            <option>第三节 氧化还原反应</option>
-            <option>第二节 离子反应</option>
-            <option>第一节 物质的分类及转化</option>
-            <option>钠及其化合物</option>
+            {chapters.map((chapter) => (
+              <option key={chapter}>{chapter}</option>
+            ))}
           </datalist>
           <span>生成</span>
           <label className="period-chip">
-            <input
-              aria-label="课时"
-              list="periods"
-              value={settings.period}
-              maxLength={100}
-              onChange={(e) =>
-                onSettings({ ...settings, period: e.target.value })
-              }
-            />
-            <span>⌄</span>
+            <span className="suggestion-input">
+              <span className="suggestion-size" aria-hidden="true">
+                {widest([...periods, settings.period])}
+              </span>
+              <input
+                aria-label="课时"
+                list="periods"
+                value={settings.period}
+                maxLength={100}
+                onChange={(e) =>
+                  onSettings({ ...settings, period: e.target.value })
+                }
+              />
+            </span>
           </label>
           <datalist id="periods">
-            {["第一课时", "第二课时", "第三课时", "复习课"].map((x) => (
+            {periods.map((x) => (
               <option key={x}>{x}</option>
             ))}
           </datalist>

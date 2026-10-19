@@ -309,18 +309,11 @@ legend {
   padding: 10px 13px;
 }
 .chapter-chip input {
-  width: 218px;
   border: 0;
   background: transparent;
   color: #3969e6;
   font-size: 16px;
   font-weight: 550;
-  min-width: 70px;
-}
-.chevron {
-  font-size: 21px;
-  line-height: 15px;
-  transform: translateY(-3px);
 }
 .sentence select {
   color: #4b75eb;
@@ -1465,7 +1458,6 @@ legend {
   }
   .chapter-chip input {
     font-size: 13px;
-    width: 166px;
   }
   .chapter-chip svg {
     width: 17px;
@@ -1797,7 +1789,6 @@ legend {
   padding: 11px 9px;
 }
 .period-chip input {
-  width: 80px;
   color: inherit;
   background: transparent;
   border: 0;
@@ -1829,7 +1820,6 @@ legend {
   }
   .period-chip input {
     font-size: 13px;
-    width: 65px;
   }
   .source-issues {
     margin: 0 10px 10px;
@@ -2005,4 +1995,41 @@ legend {
 .delete-resource:hover:not(:disabled) {
   background: #fff1f0;
   border-color: #f1bebc;
+}
+
+/* Mirror text sizes editable native suggestion fields without a second arrow. */
+.chapter-chip,
+.period-chip {
+  max-width: 100%;
+}
+.chapter-chip > svg {
+  flex-shrink: 0;
+}
+.suggestion-input {
+  display: grid;
+  min-width: 0;
+  font-size: 16px;
+}
+.chapter-chip .suggestion-input {
+  font-weight: 550;
+}
+.suggestion-input > .suggestion-size,
+.suggestion-input > input {
+  grid-area: 1 / 1;
+  font: inherit;
+}
+.suggestion-size {
+  visibility: hidden;
+  white-space: pre;
+  padding-right: 1.75em;
+  pointer-events: none;
+}
+.suggestion-input > input {
+  width: 0;
+  min-width: 100%;
+}
+@media (max-width: 650px) {
+  .suggestion-input {
+    font-size: 13px;
+  }
 }
