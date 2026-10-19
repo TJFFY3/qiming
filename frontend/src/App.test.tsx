@@ -171,3 +171,15 @@ test("retry of a failed regeneration remains generation when an earlier version 
   );
   expect(calls).not.toContain("POST /api/sessions/session/revise");
 });
+
+test("generation does not require a source-verification opt-in", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ ready: true, missing: [] })),
+  );
+  render(<App />);
+  await act(async () => {});
+  expect(
+    screen.queryByRole("checkbox", { name: /允许生成待核验草案/ }),
+  ).toBeNull();
+});

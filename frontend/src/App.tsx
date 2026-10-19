@@ -46,7 +46,6 @@ export default function App() {
     [sending, setSending] = useState(false),
     [job, setJob] = useState<Job>(),
     [versionId, setVersionId] = useState(""),
-    [allowDraft, setAllowDraft] = useState(false),
     [history, setHistory] = useState<SessionSummary[]>([]),
     [notice, setNotice] = useState("");
   const requestRef = useRef(false);
@@ -154,7 +153,7 @@ export default function App() {
         `/sessions/${s.id}/${isRevision ? "revise" : "generate"}`,
         isRevision
           ? { prompt: instruction, base_version_id: baseId || version?.id }
-          : { prompt: instruction, allow_draft: allowDraft },
+          : { prompt: instruction },
       );
       setJob(j);
       setPage("conversation");
@@ -396,17 +395,6 @@ export default function App() {
               busy={busy}
             />
             <div className="workspace-bottom">
-              <label className="draft-option">
-                <input
-                  type="checkbox"
-                  checked={allowDraft}
-                  onChange={(e) => setAllowDraft(e.target.checked)}
-                />
-                允许生成待核验草案
-                <span title="来源尚未核对时，生成的文档会明确标记待核验">
-                  ⓘ
-                </span>
-              </label>
               {optimized ? (
                 <button
                   className="applied-options"
@@ -452,17 +440,6 @@ export default function App() {
             />
           )}
           <div className="chat-composer-wrap">
-            {!version && (
-              <label className="draft-option">
-                <input
-                  type="checkbox"
-                  checked={allowDraft}
-                  disabled={busy}
-                  onChange={(e) => setAllowDraft(e.target.checked)}
-                />
-                允许生成待核验草案
-              </label>
-            )}
             <Composer
               conversation
               settings={settings}

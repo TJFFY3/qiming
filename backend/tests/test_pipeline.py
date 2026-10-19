@@ -44,20 +44,38 @@ def setup(tmp_path, model=None):
     )
 
 
-def test_source_gate_and_real_generation(tmp_path):
+@pytest.mark.parametrize("allow_draft", [False, True])
+def test_unverified_sources_do_not_block_generation(tmp_path, allow_draft):
     store, s, p = setup(tmp_path)
-    job = p.start_generation(s["id"], {"prompt": "生成", "allow_draft": False})
-    p.run(job["id"])
-    assert store.get_job(job["id"])["status"] == "failed"
-    assert store.get_session(s["id"])["versions"] == []
-    job = p.start_generation(s["id"], {"prompt": "生成", "allow_draft": True})
+    job = p.start_generation(s["id"], {"prompt": "生成", "allow_draft": allow_draft})
     p.run(job["id"])
     done = store.get_job(job["id"])
     assert done["status"] == "completed", done
     version = store.get_session(s["id"])["versions"][-1]
     assert Path(version["directory"], "outline.docx").is_file()
+    # Removing the gate must not fabricate verification of the underlying evidence.
     assert version["report"]["draft"]
     assert version["sources"][0]["verified"] is False
+
+
+def test_source_gaps_and_conflicts_are_recorded_without_blocking_export(tmp_path):
+    class WithGaps(Model):
+        def generate_json(self, messages):
+            value = super().generate_json(messages)
+            value["source_gaps"] = ["教材实验细节未覆盖"]
+            value["source_conflicts"] = ["参考资料描述有差异"]
+            return value
+
+    store, s, p = setup(tmp_path, WithGaps())
+    job = p.start_generation(s["id"], {"prompt": "生成"})
+    p.run(job["id"])
+    done = store.get_job(job["id"])
+    assert done["status"] == "completed", done
+    version = store.get_session(s["id"])["versions"][-1]
+    assert Path(version["directory"], "outline.docx").is_file()
+    assert any(
+        "教材实验细节未覆盖" in issue for issue in version["report"]["source_issues"]
+    )
 
 
 def test_repair_limit(tmp_path):

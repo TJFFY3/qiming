@@ -130,14 +130,6 @@ class Pipeline:
                     raise ValueError(
                         "未检索到本课资料，请调整章节、上传资料或检查知识库"
                     )
-                if not request.get("allow_draft") and not any(
-                    s.get("verified")
-                    and s.get("category") in ("textbook", "teacher_book")
-                    for s in sources
-                ):
-                    raise ValueError(
-                        "资料尚未核对。请在资料库查看来源并核对，或勾选“生成待核验草案”后重试"
-                    )
             self.stage(
                 job_id, 2, "生成教学内容" if not revision else "按要求修改教学内容"
             )
@@ -219,11 +211,8 @@ class Pipeline:
                             )
                         )
                     self.documents.validate(payload)
-                    allow = (
-                        bool(base["report"]["draft"])
-                        if revision
-                        else request.get("allow_draft", False)
-                    )
+                    # Source review is informational, never a generation/export gate.
+                    allow = True
                     previous = (
                         {
                             "version": base["number"],

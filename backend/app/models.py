@@ -26,7 +26,8 @@ class SessionInput(BaseModel):
 
 class GenerationInput(BaseModel):
     prompt: str = Field("请生成一份导学案。", min_length=1, max_length=8000)
-    allow_draft: bool = False
+    # Retained for compatibility with older clients; source verification no longer gates output.
+    allow_draft: bool = True
 
 
 class RevisionInput(BaseModel):

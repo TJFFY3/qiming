@@ -81,12 +81,19 @@ def test_http_generation_review_revision_and_download(tmp_path):
 
     with TestClient(create_app(settings, factory)) as client:
         sid = client.post("/api/sessions", json={}).json()["id"]
-        # No draft permission means no generation and no versions.
+        # Source verification is optional: the first request already creates a downloadable version.
         job = client.post(
             f"/api/sessions/{sid}/generate", json={"prompt": "设计导学案"}
         ).json()
-        assert client.get("/api/jobs/" + job["id"]).json()["status"] == "failed"
+        assert client.get("/api/jobs/" + job["id"]).json()["status"] == "completed"
         session = client.get(f"/api/sessions/{sid}").json()
+        first_version = session["versions"][0]
+        assert (
+            client.get(
+                f"/api/sessions/{sid}/versions/{first_version['id']}/files/outline"
+            ).status_code
+            == 200
+        )
         source = session["sources"][0]
         assert source["verified"] is False
         client.post(
@@ -97,7 +104,7 @@ def test_http_generation_review_revision_and_download(tmp_path):
         clean = json.loads(json.dumps(SAMPLE))
         clean["source_gaps"] = []
         clean["sources"] = [{"verified": True, "title": "模型伪造来源"}]
-        replies[0] = clean
+        replies.insert(0, clean)
         job = client.post(
             f"/api/sessions/{sid}/generate", json={"prompt": "设计导学案"}
         ).json()
@@ -126,8 +133,9 @@ def test_http_generation_review_revision_and_download(tmp_path):
         ).json()
         assert client.get("/api/jobs/" + job["id"]).json()["status"] == "completed"
         session = client.get(f"/api/sessions/{sid}").json()
-        assert len(session["versions"]) == 2
-        assert session["versions"][0]["content"] == version["content"]
+        assert len(session["versions"]) == 3
+        assert session["versions"][1]["content"] == version["content"]
+        assert session["versions"][0]["content"] == first_version["content"]
         assert (
             client.post(
                 f"/api/sessions/{sid}/revise",
