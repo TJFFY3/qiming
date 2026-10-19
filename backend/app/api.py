@@ -1,8 +1,11 @@
+import hashlib
+import json
 import copy
 import uuid
 from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
+from .library import KnowledgeLibrary
 from .models import SessionInput, GenerationInput, RevisionInput, ReviewInput
 from .resources import extract_resource, MAX_BYTES
 from .store import Conflict
@@ -40,6 +43,28 @@ def public_session(session, jobs):
 
 def make_router(settings, store, pipeline):
     router = APIRouter(prefix="/api")
+
+    library = KnowledgeLibrary(settings)
+    library_id = hashlib.sha256(
+        json.dumps([settings.fastgpt_url, settings.datasets], sort_keys=True).encode()
+    ).hexdigest()
+
+    @router.get("/library")
+    def full_library():
+        return store.get_library(library_id)
+
+    @router.post("/library/sync")
+    def sync_library():
+        # Save only a complete sync. A failed refresh retains the previous snapshot.
+        return store.save_library(library_id, library.synchronize())
+
+    @router.get("/library/{collection_id}/original")
+    def original(collection_id: str):
+        if not any(
+            d["id"] == collection_id for d in store.get_library(library_id)["documents"]
+        ):
+            raise KeyError("资料不存在，请先同步知识库")
+        return RedirectResponse(library.original_url(collection_id), status_code=303)
 
     @router.get("/health")
     def health():

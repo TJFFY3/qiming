@@ -1964,3 +1964,31 @@ legend {
     max-height: 340px;
   }
 }
+
+.knowledge-library {
+  margin: 28px 0;
+}
+.knowledge-library h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.library-search {
+  width: 100%;
+  padding: 11px 14px;
+  margin: 10px 0 16px;
+  border: 1px solid #dfe5ef;
+  border-radius: 10px;
+  font: inherit;
+}
+.library-document > .source-details > a {
+  margin-bottom: 14px;
+  text-decoration: none;
+}
+.library-document .source-card {
+  margin-top: 10px;
+}
+.agent-source-review {
+  margin: 16px auto 0;
+  display: flex;
+}

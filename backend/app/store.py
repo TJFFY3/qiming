@@ -22,7 +22,7 @@ class Store:
         db_path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as db:
             db.executescript(
-                "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, data TEXT NOT NULL);"
+                "CREATE TABLE IF NOT EXISTS library (id TEXT PRIMARY KEY, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, data TEXT NOT NULL);"
             )
 
     @contextmanager
@@ -201,3 +201,27 @@ class Store:
                     self._write(db, "jobs", value)
                     count += 1
         return count
+
+    def get_library(self, identity):
+        with self.connection() as db:
+            row = db.execute(
+                "SELECT data FROM library WHERE id=?", (identity,)
+            ).fetchone()
+        return (
+            json.loads(row[0])
+            if row
+            else {"documents": [], "chunk_count": 0, "synced_at": None}
+        )
+
+    def save_library(self, identity, documents):
+        value = {
+            "documents": documents,
+            "chunk_count": sum(len(d["chunks"]) for d in documents),
+            "synced_at": now(),
+        }
+        with self.connection() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO library VALUES (?,?)",
+                (identity, json.dumps(value, ensure_ascii=False)),
+            )
+        return value

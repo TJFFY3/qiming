@@ -36,7 +36,7 @@ export default function App() {
     [prompt, setPrompt] = useState("");
   const [page, setPage] = useState<"home" | "conversation">("home"),
     [modal, setModal] = useState<
-      "optimize" | "resources" | "history" | "versionSources" | null
+      "optimize" | "resources" | "recall" | "history" | "versionSources" | null
     >(null),
     [error, setError] = useState("");
   const [health, setHealth] = useState<{
@@ -353,18 +353,6 @@ export default function App() {
                 >
                   <Library size={20} />
                   资料库
-                  {session &&
-                    session.sources.length + session.resources.length > 0 && (
-                      <b>
-                        {
-                          new Set(
-                            [...session.sources, ...session.resources].map(
-                              (s) => s.id,
-                            ),
-                          ).size
-                        }
-                      </b>
-                    )}
                 </button>
                 <button
                   className="text-button"
@@ -442,13 +430,21 @@ export default function App() {
         </main>
       ) : (
         <main className="chat-main">
+          {session && session.sources.length > 0 && (
+            <button
+              className="text-button agent-source-review"
+              onClick={() => setModal("recall")}
+            >
+              <Library size={16} /> 核对本课命中片段（{session.sources.length}）
+            </button>
+          )}
           {session && (
             <Conversation
               session={session}
               job={job}
               version={version}
               onVersion={setVersionId}
-              onSources={() => setModal("resources")}
+              onSources={() => setModal("recall")}
               onVersionSources={() => setModal("versionSources")}
               onRetry={retry}
               onSuggestion={(s) => void submit(s)}
@@ -498,8 +494,9 @@ export default function App() {
           onClose={closeModal}
         />
       )}
-      {modal === "resources" && (
+      {(modal === "resources" || modal === "recall") && (
         <Resources
+          recall={modal === "recall"}
           sources={session?.sources || []}
           resources={session?.resources || []}
           onUpload={upload}

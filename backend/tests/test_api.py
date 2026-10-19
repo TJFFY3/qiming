@@ -74,3 +74,55 @@ def test_unknown_review_and_invalid_revision(tmp_path):
             ).status_code
             == 422
         )
+
+
+def test_full_library_is_independent_of_session_recall(tmp_path, monkeypatch):
+    from backend.app.library import KnowledgeLibrary
+
+    docs = [
+        {
+            "id": "ppt",
+            "title": "课件.pptx",
+            "dataset_name": "知识库",
+            "kind": "presentation",
+            "chunks": [{"id": "all", "evidence": "未命中但属于全库的片段"}],
+        }
+    ]
+    monkeypatch.setattr(KnowledgeLibrary, "synchronize", lambda _: docs)
+    monkeypatch.setattr(
+        KnowledgeLibrary, "original_url", lambda _, cid: "https://files.test/课件.pptx"
+    )
+    app = create_app(Settings(data_dir=tmp_path))
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions", json={}).json()["id"]
+        assert client.get("/api/library").json()["synced_at"] is None
+        result = client.post("/api/library/sync").json()
+        assert result["documents"] == docs
+        assert result["chunk_count"] == 1
+        assert client.get("/api/library").json() == result
+        assert client.get(f"/api/sessions/{sid}").json()["sources"] == []
+        assert (
+            client.get("/api/library/ppt/original", follow_redirects=False).status_code
+            == 303
+        )
+        assert client.get("/api/library/unknown/original").status_code == 404
+    # The full catalog survives restart, without a model/search call.
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        assert client.get("/api/library").json()["documents"] == docs
+
+
+def test_failed_full_sync_retains_previous_catalog(tmp_path, monkeypatch):
+    from backend.app.library import KnowledgeLibrary
+
+    monkeypatch.setattr(
+        KnowledgeLibrary, "synchronize", lambda _: [{"id": "ok", "chunks": []}]
+    )
+    with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
+        saved = client.post("/api/library/sync").json()
+
+        def fail(_):
+            raise ValueError("读取中断")
+
+        monkeypatch.setattr(KnowledgeLibrary, "synchronize", fail)
+        assert client.post("/api/library/sync").status_code == 400
+        assert client.get("/api/library").json() == saved

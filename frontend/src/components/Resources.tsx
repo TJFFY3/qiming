@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { Source } from "../api";
 import Modal from "./Modal";
+import KnowledgeLibrary from "./KnowledgeLibrary";
 import SourceEvidence from "./SourceEvidence";
 const categories: Record<string, string> = {
   textbook: "教材",
@@ -25,6 +26,7 @@ export default function Resources({
   onClose,
   busy,
   snapshot = false,
+  recall = false,
   sourceIssues = [],
 }: {
   sources: Source[];
@@ -34,6 +36,7 @@ export default function Resources({
   onClose: () => void;
   busy: boolean;
   snapshot?: boolean;
+  recall?: boolean;
   sourceIssues?: string[];
 }) {
   const [category, setCategory] = useState("textbook");
@@ -42,7 +45,12 @@ export default function Resources({
   const input = useRef<HTMLInputElement>(null);
   const close = useCallback(onClose, [onClose]);
   const all = Array.from(
-    new Map([...resources, ...sources].map((s) => [s.id, s])).values(),
+    new Map(
+      [...resources, ...(snapshot || recall ? sources : [])].map((s) => [
+        s.id,
+        s,
+      ]),
+    ).values(),
   );
   const upload = async (file: File) => {
     setUploading(true);
@@ -58,15 +66,23 @@ export default function Resources({
   };
   return (
     <Modal
-      title={snapshot ? "当前版本 · 来源快照" : "资料库"}
+      title={
+        snapshot
+          ? "当前版本 · 来源快照"
+          : recall
+            ? "本课检索命中片段"
+            : "资料库"
+      }
       onClose={close}
       className="resource-modal"
     >
       <div className="modal-scroll">
         <p className="panel-description">
-          基于 FastGPT 知识库与上传资料备课。检索命中会保留原始摘录，供你核对。
+          {snapshot || recall
+            ? "此处仅保留本次导学案生成使用的命中片段。"
+            : "浏览 FastGPT 知识库全部资料与片段，包括 PPT；导学案生成时按需求检索。"}
         </p>
-        {!snapshot && (
+        {!snapshot && !recall && (
           <div
             className="upload-zone"
             onDragOver={(e) => e.preventDefault()}
@@ -117,6 +133,7 @@ export default function Resources({
             />
           </div>
         )}
+        {!snapshot && !recall && <KnowledgeLibrary />}
         {sourceIssues.length > 0 && (
           <div className="source-issues">
             <strong>本版本资料缺口与待核验项</strong>
@@ -133,7 +150,7 @@ export default function Resources({
           </p>
         )}
         <div className="source-list-header">
-          <h3>本课资料</h3>
+          <h3>{snapshot || recall ? "本次命中片段" : "本课上传资料"}</h3>
           <span>
             {all.length} 份来源 · {all.filter((x) => x.verified).length}{" "}
             份已核对
@@ -152,8 +169,8 @@ export default function Resources({
         ) : (
           <div className="empty-state">
             <BookOpen size={32} />
-            <h3>等待检索本课资料</h3>
-            <p>提交备课要求后检索 FastGPT，也可以先上传教材或教师用书。</p>
+            <h3>{snapshot ? "暂无命中片段" : "尚未上传本课资料"}</h3>
+            <p>可以上传教材或教师用书作为本课补充资料。</p>
           </div>
         )}
       </div>
@@ -170,12 +187,14 @@ export default function Resources({
     </Modal>
   );
 }
-function SourceCard({
+export function SourceCard({
   source,
   onReview,
   busy,
   snapshot,
+  library = false,
 }: {
+  library?: boolean;
   source: Source;
   onReview: (s: Source, n: string, v: boolean) => Promise<void>;
   busy: boolean;
@@ -194,7 +213,7 @@ function SourceCard({
       >
         <FileText size={20} />
         <div>
-          <strong>{source.title}</strong>
+          <strong>{library ? source.locator : source.title}</strong>
           <small>
             {categories[source.category] || "参考资料"} · {source.locator}
           </small>
@@ -207,7 +226,9 @@ function SourceCard({
       {open && (
         <div className="source-details">
           <SourceEvidence text={source.evidence} />
-          {snapshot ? (
+          {library ? (
+            <p className="field-hint">知识库原始片段，教学引用仍需核对。</p>
+          ) : snapshot ? (
             <p className="field-hint">
               核对记录：{source.review_note || "本版本尚无核对记录"}
             </p>
