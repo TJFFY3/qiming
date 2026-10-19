@@ -219,7 +219,7 @@ export default function App() {
     );
     setNotice("已删除本课资料，后续生成不再使用；历史版本保留原来源。");
   };
-  const newSession = () => {
+  const resetDraft = (preserveLesson = false) => {
     if (busy) {
       setNotice("当前任务仍在执行，请完成后新建备课。");
       return;
@@ -229,10 +229,17 @@ export default function App() {
     setVersionId("");
     setPage("home");
     setPrompt("");
-    setSettings(defaultSettings());
+    setSettings((old) =>
+      preserveLesson
+        ? { ...old, options: defaultSettings().options }
+        : defaultSettings(),
+    );
+    setModal(null);
+    setNotice("");
     localStorage.removeItem("qiming-session");
     setError("");
   };
+  const newSession = () => resetDraft();
   const apply = (options: Options) => {
     setSettings((old) => ({ ...old, options }));
     setPrompt((old) =>
@@ -287,7 +294,10 @@ export default function App() {
         </header>
       ) : (
         <header className="conversation-header">
-          <button className="text-button muted" onClick={() => setPage("home")}>
+          <button
+            className="text-button muted"
+            onClick={() => resetDraft(true)}
+          >
             <ArrowLeft size={20} />
             返回备课
           </button>
