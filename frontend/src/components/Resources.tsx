@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { Source } from "../api";
 import Modal from "./Modal";
+import SourceEvidence from "./SourceEvidence";
 const categories: Record<string, string> = {
   textbook: "教材",
   teacher_book: "教师用书",
@@ -205,7 +206,7 @@ function SourceCard({
       </button>
       {open && (
         <div className="source-details">
-          <pre>{source.evidence}</pre>
+          <SourceEvidence text={source.evidence} />
           {snapshot ? (
             <p className="field-hint">
               核对记录：{source.review_note || "本版本尚无核对记录"}

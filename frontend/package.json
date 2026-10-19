@@ -10,9 +10,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "emf-converter": "4.21.0",
     "lucide-react": "0.468.0",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@testing-library/react": "16.3.0",
