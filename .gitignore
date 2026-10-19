@@ -7,3 +7,6 @@ data/
 .idea/
 .superpowers/
 backend/app/config.py
+
+.DS_Store
+*.tsbuildinfo
