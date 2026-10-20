@@ -279,3 +279,150 @@ test.each(["新建备课", "返回备课"])(
     expect(settings.options.duration).toBe("15 分钟");
   },
 );
+
+test.each(["queued", "running"])(
+  "%s guide task can return home and switch agents while preserving progress",
+  async (status) => {
+    window.history.replaceState(null, "", "#guide");
+    localStorage.setItem("qiming-session", "active-guide");
+    let completed = false;
+    const job = {
+      id: "active-job",
+      session_id: "active-guide",
+      kind: "generation",
+      status,
+      stages: [],
+      error: null,
+      version_id: null,
+      created_at: new Date().toISOString(),
+    };
+    const version = {
+      id: "done",
+      number: "v001",
+      parent_id: null,
+      change_kind: "首次生成",
+      created_at: "",
+      content_sha256: "hash",
+      sources: [],
+      content: {
+        title: "后台完成的导学案",
+        goals: ["能够判断氧化还原反应"],
+        sections: [],
+      },
+      report: {
+        draft: false,
+        source_issues: [],
+        statistics: { content_tables: 0, note_rows: 25 },
+        validation: { passed: true },
+      },
+    };
+    const requests: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        requests.push((init?.method || "GET") + " " + url);
+        if (url.endsWith("/health"))
+          return Response.json({ ready: true, missing: [] });
+        const current = completed
+          ? { ...job, status: "completed", version_id: "done" }
+          : job;
+        if (url === "/api/jobs/active-job") return Response.json(current);
+        if (url === "/api/sessions/active-guide")
+          return Response.json({
+            id: "active-guide",
+            settings: defaultSettings(),
+            messages: [{ role: "user", content: "生成导学案" }],
+            resources: [],
+            sources: [],
+            versions: completed ? [version] : [],
+            jobs: [current],
+          });
+        throw new Error("Unexpected " + url);
+      }),
+    );
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "返回备课" }));
+    expect(screen.getByRole("tab", { name: "互动课件" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "查看任务" })).toBeTruthy();
+    expect(localStorage.getItem("qiming-session")).toBe("active-guide");
+    fireEvent.click(screen.getByRole("tab", { name: "互动课件" }));
+    await screen.findByRole("textbox", { name: "课件要求" });
+    fireEvent.click(screen.getByRole("tab", { name: "限时练习" }));
+    await screen.findByRole("textbox", { name: "限时练习要求" });
+    completed = true;
+    await waitFor(
+      () =>
+        expect(
+          requests.filter((r) => r === "GET /api/sessions/active-guide").length,
+        ).toBeGreaterThan(1),
+      { timeout: 3000 },
+    );
+    expect(screen.getByRole("textbox", { name: "限时练习要求" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "导学案" }));
+    fireEvent.click(screen.getByRole("button", { name: "查看任务" }));
+    expect(
+      screen.getByRole("heading", { name: "后台完成的导学案" }),
+    ).toBeTruthy();
+    expect(requests.every((r) => r.startsWith("GET "))).toBe(true);
+  },
+);
+
+test("returning home while submission is pending is not undone by its delayed response", async () => {
+  window.history.replaceState(null, "", "#guide");
+  localStorage.setItem("qiming-session", "pending-guide");
+  const failed = {
+    id: "old",
+    session_id: "pending-guide",
+    kind: "generation",
+    status: "failed",
+    stages: [],
+    error: "上次失败",
+    version_id: null,
+    created_at: new Date().toISOString(),
+  };
+  const job = { ...failed, id: "new", status: "running", error: null };
+  const session = {
+    id: "pending-guide",
+    settings: defaultSettings(),
+    messages: [],
+    resources: [],
+    sources: [],
+    versions: [],
+    jobs: [failed],
+  };
+  let accepted = false,
+    started = false;
+  let release: (value: Response) => void = () => {};
+  const response = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/health"))
+        return Response.json({ ready: true, missing: [] });
+      if (url.endsWith("/generate") && init?.method === "POST") {
+        started = true;
+        return response;
+      }
+      if (url.endsWith("/jobs/new")) return Response.json(job);
+      return Response.json({ ...session, jobs: accepted ? [job] : [failed] });
+    }),
+  );
+  render(<App />);
+  const prompt = await screen.findByRole("textbox", { name: "继续修改导学案" });
+  fireEvent.change(prompt, { target: { value: "重新生成导学案" } });
+  fireEvent.click(screen.getByRole("button", { name: "提交修改" }));
+  await waitFor(() => expect(started).toBe(true));
+  fireEvent.click(screen.getByRole("button", { name: "返回备课" }));
+  await act(async () => {
+    accepted = true;
+    release(Response.json(job));
+  });
+  expect(screen.getByRole("tab", { name: "互动课件" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "查看任务" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "返回备课" })).toBeNull();
+  expect(localStorage.getItem("qiming-session")).toBe("pending-guide");
+});

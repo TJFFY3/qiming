@@ -2016,3 +2016,156 @@ legend {
 .composer.compact textarea.optimization-prompt {
   height: 240px;
 }
+
+.task-error .error-details {
+  margin: 10px 0;
+}
+.error-details summary {
+  cursor: pointer;
+  font-size: 12px;
+}
+.error-details pre {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+/* All agent entrances use the guide's home layout and controls. */
+.composer-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 0 0 16px;
+  color: #929ba9;
+  font-size: 12px;
+}
+.composer-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+.composer-options select {
+  border: 1px solid #e2e7f0;
+  border-radius: 8px;
+  background: #fafbfe;
+  padding: 7px 11px;
+  color: #596b8c;
+  max-width: 100%;
+}
+.agent-draft-option {
+  margin: 20px 8px 0;
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .composer-options {
+    gap: 10px;
+  }
+  .agent-draft-option {
+    font-size: 11px;
+  }
+  .agent-draft-option > span {
+    width: 100%;
+    margin-left: 20px;
+    font-size: 10px;
+  }
+}
+
+.active-guide-task {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #dae6ff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin: 0 0 26px;
+  color: #4975ca;
+  background: #f5f8ff;
+}
+.active-guide-task > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.active-guide-task strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 550;
+}
+.active-guide-task small {
+  display: block;
+  color: #8b9bb7;
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 4px;
+}
+.active-guide-task .text-button {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .active-guide-task {
+    padding: 12px;
+    gap: 10px;
+  }
+  .active-guide-task strong {
+    font-size: 12px;
+  }
+  .active-guide-task small {
+    font-size: 10px;
+  }
+  .active-guide-task .text-button {
+    font-size: 11px;
+    gap: 2px;
+  }
+}
+
+.historical-version-note {
+  margin: -2px 0 14px;
+  color: #9aa5b7;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.progress-requirements {
+  margin: 14px 0 0 28px;
+  color: #8393ad;
+  font-size: 12px;
+}
+.courseware-document-title {
+  margin: 0;
+  padding: 22px 24px 10px;
+  color: #35425b;
+  font-size: 18px;
+  font-weight: 600;
+}
+.document-toolbar > div {
+  flex-wrap: wrap;
+}
+.chat-composer-wrap .composer-options {
+  margin: 0 0 10px;
+  font-size: 11px;
+}
+.chat-composer-wrap .composer-options select {
+  padding: 5px 8px;
+}
+@media (max-width: 600px) {
+  .courseware-document-title {
+    padding: 16px 14px 10px;
+    font-size: 15px;
+  }
+  .progress-requirements {
+    margin-left: 0;
+    font-size: 10px;
+  }
+  .document-toolbar {
+    flex-wrap: wrap;
+  }
+  .document-toolbar > div {
+    justify-content: flex-start;
+  }
+}

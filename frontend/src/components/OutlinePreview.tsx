@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Download, FileText, CheckCircle2, ExternalLink } from "lucide-react";
 import { sourceNotes, sourceTitle } from "../sourceDisplay";
 import { fileUrl, type RichText, type Run, type Version } from "../api";
+import { chemistryRuns } from "../chemistryFormat";
 function formula(value: string): ReactNode {
   const charge = value.match(/(?:\^([0-9]*[+-])|([+-]))$/);
   const text = charge ? value.slice(0, charge.index) : value;
@@ -15,15 +16,18 @@ function formula(value: string): ReactNode {
   );
 }
 function marked(text: string): ReactNode {
-  return text
-    .split(/(\[[^\[\]]+\])/)
-    .map((x, i) =>
-      x.startsWith("[") && x.endsWith("]") ? (
-        <span key={i}>{formula(x.slice(1, -1))}</span>
-      ) : (
-        x
-      ),
-    );
+  return text.split(/(\[[^\[\]]+\])/).map((x, i) =>
+    x.startsWith("[") && x.endsWith("]") ? (
+      <span key={i}>{formula(x.slice(1, -1))}</span>
+    ) : (
+      x.split("\n").map((line, j) => (
+        <span key={j}>
+          {j > 0 && <br />}
+          {line}
+        </span>
+      ))
+    ),
+  );
 }
 function RunText({ run }: { run: Run }) {
   let body: ReactNode = marked(run.text);
@@ -59,6 +63,7 @@ function RunText({ run }: { run: Run }) {
   );
 }
 export function Rich({ value }: { value: RichText }) {
+  value = chemistryRuns(value);
   return (
     <>
       {Array.isArray(value)

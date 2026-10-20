@@ -2,16 +2,11 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import {
   Sparkles,
   FileText,
-  Presentation,
-  ListChecks,
   Library,
-  Paperclip,
-  ArrowLeft,
   History,
-  X,
-  Plus,
-  AlertCircle,
   ChevronRight,
+  X,
+  AlertCircle,
   LoaderCircle,
 } from "lucide-react";
 import {
@@ -30,7 +25,78 @@ import OptimizeDialog from "./components/OptimizeDialog";
 import Conversation from "./components/Conversation";
 import Resources from "./components/Resources";
 import Modal from "./components/Modal";
+import CoursewareAgent from "./agents/courseware/CoursewareAgent";
+import PracticeApp from "./agents/timed-practice/PracticeApp";
+import {
+  AgentHomeHeader,
+  AgentHero,
+  LessonToolbar,
+  AgentHomeFooter,
+  AppliedOptions,
+} from "./components/AgentHome";
+import {
+  ConversationHeader,
+  ConversationComposer,
+  BackgroundTaskNotice,
+} from "./components/AgentConversation";
+type AgentId = "guide" | "courseware" | "practice";
+function hashAgent(): AgentId {
+  return window.location.hash === "#practice"
+    ? "practice"
+    : window.location.hash === "#courseware"
+      ? "courseware"
+      : "guide";
+}
 export default function App() {
+  const [agent, setAgent] = useState<AgentId>(hashAgent);
+  const [visited, setVisited] = useState(() => new Set([agent]));
+  const selectAgent = (next: AgentId) => {
+    setVisited((old) => new Set([...old, next]));
+    setAgent(next);
+    window.location.hash = next;
+  };
+  useEffect(() => {
+    const navigate = () => {
+      const next = hashAgent();
+      setVisited((old) => new Set([...old, next]));
+      setAgent(next);
+    };
+    window.addEventListener("hashchange", navigate);
+    return () => window.removeEventListener("hashchange", navigate);
+  }, []);
+  return (
+    <>
+      {visited.has("guide") && (
+        <div hidden={agent !== "guide"}>
+          <StudyGuideAgent
+            onCourseware={() => selectAgent("courseware")}
+            onPractice={() => selectAgent("practice")}
+          />
+        </div>
+      )}
+      {visited.has("courseware") && (
+        <div hidden={agent !== "courseware"}>
+          <CoursewareAgent
+            onGuide={() => selectAgent("guide")}
+            onPractice={() => selectAgent("practice")}
+          />
+        </div>
+      )}
+      {visited.has("practice") && (
+        <div hidden={agent !== "practice"}>
+          <PracticeApp onAgentChange={selectAgent} />
+        </div>
+      )}
+    </>
+  );
+}
+function StudyGuideAgent({
+  onCourseware,
+  onPractice,
+}: {
+  onCourseware: () => void;
+  onPractice: () => void;
+}) {
   const [settings, setSettings] = useState<Settings>(defaultSettings),
     [session, setSession] = useState<Session | null>(null),
     [prompt, setPrompt] = useState("");
@@ -49,6 +115,7 @@ export default function App() {
     [history, setHistory] = useState<SessionSummary[]>([]),
     [notice, setNotice] = useState("");
   const requestRef = useRef(false);
+  const returnHomeRef = useRef(false);
   const busy = sending || job?.status === "running" || job?.status === "queued";
   const version =
     session?.versions.find((v) => v.id === versionId) ||
@@ -150,6 +217,7 @@ export default function App() {
       return;
     }
     requestRef.current = true;
+    returnHomeRef.current = false;
     setSending(true);
     setError("");
     try {
@@ -165,7 +233,7 @@ export default function App() {
           : { prompt: instruction },
       );
       setJob(j);
-      setPage("conversation");
+      if (!returnHomeRef.current) setPage("conversation");
       setPrompt("");
       setSession(await api<Session>("/sessions/" + s.id));
     } catch (e) {
@@ -225,6 +293,7 @@ export default function App() {
       return;
     }
     setSession(null);
+    returnHomeRef.current = false;
     setJob(undefined);
     setVersionId("");
     setPage("home");
@@ -240,6 +309,17 @@ export default function App() {
     setError("");
   };
   const newSession = () => resetDraft();
+  const returnHome = () => {
+    if (busy) {
+      // Navigation must not reset the active session or stop its polling.
+      returnHomeRef.current = true;
+      setPage("home");
+      setModal(null);
+      setError("");
+    } else {
+      resetDraft(true);
+    }
+  };
   const apply = (options: Options) => {
     setSettings((old) => ({ ...old, options }));
     setPrompt((old) =>
@@ -272,65 +352,22 @@ export default function App() {
       className={"app " + (page === "conversation" ? "conversation-page" : "")}
     >
       {page === "home" ? (
-        <header className="site-header">
-          <button className="brand" onClick={newSession}>
-            <span className="brand-mark">
-              <Sparkles size={20} />
-            </span>
-            启鸣
-            <span className="brand-divider" />
-            教学工作台
-          </button>
-          <div className="header-actions">
-            <span className="connection">
-              <i className={health?.ready ? "online" : ""} />
-              {health?.ready ? "服务已连接" : "本地工作台"}
-            </span>
-            <button
-              className="icon-button"
-              aria-label="历史备课"
-              onClick={() => void openHistory()}
-            >
-              <History size={19} />
-            </button>
-          </div>
-        </header>
+        <AgentHomeHeader
+          ready={!!health?.ready}
+          onNew={newSession}
+          onHistory={() => void openHistory()}
+        />
       ) : (
-        <header className="conversation-header">
-          <button
-            className="text-button muted"
-            onClick={() => resetDraft(true)}
-          >
-            <ArrowLeft size={20} />
-            返回备课
-          </button>
-          <div>
-            <h1>
-              {settings.chapter} · {settings.period} · 导学案
-            </h1>
-            <p>对话式生成</p>
-          </div>
-          <div className="conversation-actions">
-            <button
-              className="text-button"
-              onClick={() => setModal("resources")}
-            >
-              <Library size={18} />
-              资料库
-            </button>
-            <button
-              className="icon-button"
-              aria-label="历史备课"
-              onClick={() => void openHistory()}
-            >
-              <History size={19} />
-            </button>
-            <button className="button secondary small" onClick={newSession}>
-              <Plus size={16} />
-              新建备课
-            </button>
-          </div>
-        </header>
+        <ConversationHeader
+          chapter={settings.chapter}
+          period={settings.period}
+          product="导学案"
+          onBack={returnHome}
+          onSources={() => setModal("resources")}
+          onHistory={() => void openHistory()}
+          onNew={newSession}
+          busy={busy}
+        />
       )}
       {error && (
         <div role="alert" className="error-banner">
@@ -347,78 +384,33 @@ export default function App() {
       )}
       {page === "home" ? (
         <main className="home-main">
-          <section className="hero">
-            <div className="eyebrow">
-              <span />
-              让每一节课，都有好设计
-            </div>
-            <h1>
-              <span>启鸣 AI</span>，帮你备课
-            </h1>
-            <div className="product-tabs" role="tablist" aria-label="备课产物">
-              <button role="tab" aria-selected="true" className="active">
-                <FileText size={22} />
-                导学案
-              </button>
-              <button
-                role="tab"
-                aria-selected="false"
-                onClick={() => setNotice("互动课件将在后续版本开放")}
-              >
-                <Presentation size={23} />
-                互动课件
-              </button>
-              <button
-                role="tab"
-                aria-selected="false"
-                onClick={() => setNotice("限时练习将在后续版本开放")}
-              >
-                <ListChecks size={23} />
-                限时练习
-              </button>
-            </div>
-          </section>
+          <AgentHero
+            active="guide"
+            onChange={(kind) => {
+              if (kind === "courseware") onCourseware();
+              else if (kind === "practice") onPractice();
+            }}
+          />
           <section className="workspace">
-            <div className="resource-toolbar">
-              <div>
-                <button
-                  className="text-button library-button"
-                  onClick={() => setModal("resources")}
-                >
-                  <Library size={20} />
-                  资料库
-                </button>
-                <button
-                  className="text-button"
-                  onClick={() => setModal("resources")}
-                >
-                  <Paperclip size={20} />
-                  上传资源
-                </button>
-              </div>
-              <div className="lesson-context">
-                <input
-                  aria-label="教材版本"
-                  maxLength={200}
-                  value={settings.edition}
-                  onChange={(e) =>
-                    setSettings({ ...settings, edition: e.target.value })
-                  }
-                />
-                <span>·</span>
-                <select
-                  aria-label="年级"
-                  value={settings.grade}
-                  onChange={(e) =>
-                    setSettings({ ...settings, grade: e.target.value })
-                  }
-                >
-                  <option>高一</option>
-                  <option>高二</option>
-                  <option>高三</option>
-                </select>
-              </div>
-            </div>
+            {session && (job || sending) && (
+              <BackgroundTaskNotice
+                product="导学案"
+                busy={busy}
+                sending={sending}
+                status={job?.status}
+                onResume={() => {
+                  returnHomeRef.current = false;
+                  setPage("conversation");
+                }}
+              />
+            )}
+            <LessonToolbar
+              settings={settings}
+              onSettings={setSettings}
+              onResources={() => setModal("resources")}
+              busy={busy}
+              uploadCount={session?.resources.length || 0}
+            />
             <Composer
               settings={settings}
               onSettings={setSettings}
@@ -429,27 +421,13 @@ export default function App() {
               onHistory={() => void openHistory()}
               busy={busy}
             />
-            <div className="workspace-bottom">
-              {optimized ? (
-                <button
-                  className="applied-options"
-                  onClick={() => setModal("optimize")}
-                >
-                  <SlidersIcon />
-                  已填入优化要求
-                  <ChevronRight size={13} />
-                </button>
-              ) : (
-                <span>从本课教材出发，生成可编辑的导学案</span>
-              )}
-            </div>
+            <AppliedOptions
+              optimized={optimized}
+              onOptimize={() => setModal("optimize")}
+              hint="从本课教材出发，生成可编辑的导学案"
+            />
           </section>
-          <footer className="home-footer">
-            <span className="footer-line" />
-            <Sparkles size={14} />
-            <span>把备课的时间，还给教学的思考</span>
-            <span className="footer-line" />
-          </footer>
+          <AgentHomeFooter />
         </main>
       ) : (
         <main className="chat-main">
@@ -474,7 +452,7 @@ export default function App() {
               busy={busy}
             />
           )}
-          <div className="chat-composer-wrap">
+          <ConversationComposer>
             <Composer
               conversation
               settings={settings}
@@ -486,10 +464,7 @@ export default function App() {
               onHistory={() => void openHistory()}
               busy={busy}
             />
-            <p className="chat-disclaimer">
-              内容由 AI 辅助生成，请结合教材与学情复核后使用。
-            </p>
-          </div>
+          </ConversationComposer>
         </main>
       )}
       {notice && (
@@ -571,7 +546,4 @@ export default function App() {
       )}
     </div>
   );
-}
-function SlidersIcon() {
-  return <span aria-hidden="true">✦</span>;
 }

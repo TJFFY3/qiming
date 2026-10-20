@@ -93,6 +93,7 @@ export type Job = {
     ended_at?: string;
   }[];
   error: string | null;
+  error_detail?: string | null;
   version_id: string | null;
   created_at: string;
 };

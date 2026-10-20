@@ -7,6 +7,7 @@ data/
 .idea/
 .superpowers/
 backend/app/config.py
+backend/app/courseware_config.py
 
 .DS_Store
 *.tsbuildinfo

@@ -24,7 +24,7 @@ test("historical source snapshot displays original gaps and cannot be edited", (
       busy={false}
     />,
   );
-  expect(screen.getByText("教材页码尚待核对")).toBeTruthy();
+  expect(screen.getByText("教材页码信息待补充")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "选择文件" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /旧版来源/ }));
   expect(screen.getByText("旧版摘录")).toBeTruthy();
@@ -180,7 +180,7 @@ test("source cards show evidence without verification labels or review controls"
       sources={[
         {
           id: "unverified",
-          title: "来源A",
+          title: "待核验 · 来源A",
           category: "textbook",
           locator: "片段1",
           evidence: "证据A",
@@ -204,6 +204,6 @@ test("source cards show evidence without verification labels or review controls"
   fireEvent.click(screen.getByRole("button", { name: /来源A/ }));
   expect(screen.getByText("证据A")).toBeTruthy();
   expect(
-    screen.queryAllByText(/待核对|已核对|核对记录|撤销核对|我已核对原文/),
+    screen.queryAllByText(/待核验|待核对|已核对|核对记录|撤销核对|我已核对原文/),
   ).toHaveLength(0);
 });

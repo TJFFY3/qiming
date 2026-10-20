@@ -10,7 +10,7 @@ import {
 import type { Source } from "../api";
 import Modal from "./Modal";
 import KnowledgeLibrary from "./KnowledgeLibrary";
-import { sourceNotes } from "../sourceDisplay";
+import { sourceNotes, sourceTitle } from "../sourceDisplay";
 import SourceEvidence from "./SourceEvidence";
 const categories: Record<string, string> = {
   textbook: "教材",
@@ -215,7 +215,7 @@ export function SourceCard({
       >
         <FileText size={20} />
         <div>
-          <strong>{library ? source.locator : source.title}</strong>
+          <strong>{sourceTitle(library ? source.locator : source.title)}</strong>
           <small>
             {categories[source.category] || "参考资料"} · {source.locator}
           </small>
@@ -226,7 +226,7 @@ export function SourceCard({
         <div className="source-actions">
           <button
             className="button secondary small delete-resource"
-            aria-label={`删除资料 ${source.title}`}
+            aria-label={`删除资料 ${sourceTitle(source.title)}`}
             disabled={busy || working}
             onClick={async () => {
               setWorking(true);

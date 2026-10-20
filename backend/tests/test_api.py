@@ -175,3 +175,59 @@ def test_deleting_resource_during_generation_is_rejected(tmp_path):
             client.get(f"/api/sessions/{sid}").json()["resources"][0]["id"]
             == source["id"]
         )
+
+
+def test_legacy_content_error_is_explained_without_losing_technical_detail():
+    from backend.app.api import public_job
+
+    detail = "内容校验失败，已修复两轮：$.outline.sections[3].blocks[3].headers[0]: 文本不能为空白"
+    job = public_job({"id": "old", "request": {"kind": "generation"}, "error": detail})
+    assert "表头" in job["error"] and "$.outline" not in job["error"]
+    assert job["error_detail"] == detail
+
+
+def test_historical_guide_downloads_remove_review_labels_without_changing_saved_files(
+    tmp_path,
+):
+    import json
+    from io import BytesIO
+    from docx import Document
+    from backend.app.documents import DocumentEngine
+
+    app = create_app(Settings(data_dir=tmp_path))
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions", json={}).json()["id"]
+        directory = tmp_path / sid / "versions" / "old"
+        sample = json.loads(
+            __import__("pathlib")
+            .Path("vendor/chemistry/examples/outline.json")
+            .read_text()
+        )
+        report = DocumentEngine().render(sample, directory, "v001", True)
+        doc = Document(directory / "outline.docx")
+        doc.paragraphs[0].text = "待核验 · 氧化还原反应"
+        doc.save(directory / "outline.docx")
+        original = (directory / "outline.docx").read_bytes()
+        content = json.loads((directory / "content.json").read_text())
+        content["title"] = "待核验 · 氧化还原反应"
+        (directory / "content.json").write_text(json.dumps(content, ensure_ascii=False))
+        version = {
+            "id": "old",
+            "number": "v001",
+            "directory": str(directory),
+            "content": content,
+            "report": report,
+            "sources": [{"verified": False}],
+        }
+        app.state.store.update_session(sid, lambda s: s.update(versions=[version]))
+        url = f"/api/sessions/{sid}/versions/old"
+        public = client.get(url).json()
+        assert public["content"]["title"] == "氧化还原反应"
+        assert public["sources"][0]["verified"] is False
+        assert "待核验" not in json.dumps(public, ensure_ascii=False)
+        word = client.get(url + "/files/outline")
+        assert "待核验" not in word.headers["content-disposition"]
+        assert "待核验" not in Document(BytesIO(word.content)).paragraphs[0].text
+        assert (directory / "outline.docx").read_bytes() == original
+        assert client.get(url + "/files/content").json()["title"] == "氧化还原反应"
+        assert "待核验" not in client.get(url + "/files/report").text

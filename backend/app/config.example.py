@@ -26,6 +26,7 @@ class Settings:
     using_rerank: bool = False
     timeout: float = 120
     data_dir: Path = ROOT / "data"
+    timed_practice: dict = field(default_factory=dict)  # 限时练习专用连接覆盖；留空沿用公共连接
 
     def missing(self) -> list[str]:
         fields = ["fastgpt_url", "fastgpt_key", "datasets"] + (

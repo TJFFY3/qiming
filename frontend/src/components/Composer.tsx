@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   ArrowUp,
   BookOpen,
@@ -7,7 +8,9 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import type { Settings } from "../api";
-export default function Composer({
+export default function Composer<
+  T extends { chapter: string; period: string } = Settings,
+>({
   settings,
   onSettings,
   prompt,
@@ -17,9 +20,16 @@ export default function Composer({
   onHistory,
   busy,
   conversation = false,
+  product = "导学案",
+  chapterLabel = "章节 / 知识点",
+  periodLabel = "课时",
+  promptLabel,
+  historyLabel = "历史备课",
+  placeholder,
+  children,
 }: {
-  settings: Settings;
-  onSettings: (s: Settings) => void;
+  settings: T;
+  onSettings: (s: T) => void;
   prompt: string;
   onPrompt: (v: string) => void;
   onSubmit: () => void;
@@ -27,6 +37,13 @@ export default function Composer({
   onHistory: () => void;
   busy: boolean;
   conversation?: boolean;
+  product?: string;
+  chapterLabel?: string;
+  periodLabel?: string;
+  promptLabel?: string;
+  historyLabel?: string;
+  placeholder?: string;
+  children?: ReactNode;
 }) {
   const chapters = [
     "第三节 氧化还原反应",
@@ -35,6 +52,8 @@ export default function Composer({
     "钠及其化合物",
   ];
   const periods = ["第一课时", "第二课时"];
+  const canSubmit =
+    !busy && !!settings.chapter.trim() && (!conversation || !!prompt.trim());
   return (
     <div className={"composer " + (conversation ? "compact" : "")}>
       {!conversation && (
@@ -43,7 +62,8 @@ export default function Composer({
           <label className="chapter-chip">
             <BookOpen size={23} />
             <select
-              aria-label="章节 / 知识点"
+              aria-label={chapterLabel}
+              disabled={busy}
               value={settings.chapter}
               onChange={(e) =>
                 onSettings({ ...settings, chapter: e.target.value })
@@ -62,7 +82,8 @@ export default function Composer({
           <span>生成</span>
           <label className="period-chip">
             <select
-              aria-label="课时"
+              aria-label={periodLabel}
+              disabled={busy}
               value={settings.period}
               onChange={(e) =>
                 onSettings({ ...settings, period: e.target.value })
@@ -75,40 +96,52 @@ export default function Composer({
               ))}
             </select>
           </label>
-          <span>导学案</span>
+          <span>{product}</span>
         </div>
       )}
       <textarea
         className={
-          prompt.includes("【优化提示】") ? "optimization-prompt" : undefined
+          /【[^【\n]*优化(?:提示|设置)】/.test(prompt)
+            ? "optimization-prompt"
+            : undefined
         }
-        aria-label={conversation ? "继续修改导学案" : "备课要求"}
+        aria-label={
+          promptLabel || (conversation ? "继续修改导学案" : "备课要求")
+        }
+        disabled={busy}
         value={prompt}
         maxLength={8000}
         onChange={(e) => onPrompt(e.target.value)}
         placeholder={
-          conversation
+          placeholder ||
+          (conversation
             ? "继续对话，随时调整这节课的设计，例如：增加互动环节…"
-            : "例如：以生活情境导入，安排小组探究，突出重点和易错点…"
+            : "例如：以生活情境导入，安排小组探究，突出重点和易错点…")
         }
         onKeyDown={(e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !busy) {
+          if (
+            (e.ctrlKey || e.metaKey) &&
+            e.key === "Enter" &&
+            canSubmit &&
+            !e.nativeEvent.isComposing
+          ) {
             e.preventDefault();
             onSubmit();
           }
         }}
       />
+      {children}
       <div className="composer-footer">
         <div>
           {conversation ? (
             <span className="agent-label">
               <Sparkles size={19} />
-              启鸣 AI · 教学设计
+              启鸣 AI · {product === "导学案" ? "教学设计" : product}
             </span>
           ) : (
             <button
-              title="历史备课"
-              aria-label="历史备课"
+              title={historyLabel}
+              aria-label={historyLabel}
               className="icon-button"
               onClick={onHistory}
             >
@@ -122,12 +155,16 @@ export default function Composer({
         </div>
         <button
           className="send-button"
-          aria-label={conversation ? "提交修改" : "生成导学案"}
+          aria-label={
+            conversation
+              ? product === "导学案"
+                ? "提交修改"
+                : `提交${product === "互动课件" ? "课件" : product}修改`
+              : `生成${product}`
+          }
           title="⌘ / Ctrl + Enter 提交"
           onClick={onSubmit}
-          disabled={
-            busy || !settings.chapter.trim() || (conversation && !prompt.trim())
-          }
+          disabled={!canSubmit}
         >
           {busy ? (
             <LoaderCircle className="spin" size={23} />

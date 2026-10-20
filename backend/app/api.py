@@ -9,10 +9,14 @@ from .library import KnowledgeLibrary
 from .models import SessionInput, GenerationInput, RevisionInput, ReviewInput
 from .resources import extract_resource, MAX_BYTES
 from .store import Conflict
+from .table_repair import failure_summary
+from .publication import clean_office_download, clean_public
 
 
 def public_source(source):
-    return {k: v for k, v in source.items() if k not in ("file_path", "text", "pages")}
+    return clean_public(
+        {k: v for k, v in source.items() if k not in ("file_path", "text", "pages")}
+    )
 
 
 def public_version(version):
@@ -21,24 +25,30 @@ def public_version(version):
     v["report"].pop("files", None)
     if "previous" in v["report"]:
         v["report"]["previous"].pop("directory", None)
-    return v
+    return clean_public(v)
 
 
 def public_job(job):
-    return {
+    value = {
         **{k: v for k, v in job.items() if k != "request"},
         "kind": job["request"].get("kind", "generation"),
         "base_version_id": job["request"].get("base_version_id"),
     }
+    if (job.get("error") or "").startswith("内容校验失败，已修复两轮："):
+        value["error_detail"] = job.get("error_detail") or job["error"]
+        value["error"] = failure_summary(job["error"])
+    return clean_public(value)
 
 
 def public_session(session, jobs):
-    return {
-        **session,
-        "resources": [public_source(r) for r in session["resources"]],
-        "versions": [public_version(v) for v in session["versions"]],
-        "jobs": [public_job(j) for j in jobs],
-    }
+    return clean_public(
+        {
+            **session,
+            "resources": [public_source(r) for r in session["resources"]],
+            "versions": [public_version(v) for v in session["versions"]],
+            "jobs": [public_job(j) for j in jobs],
+        }
+    )
 
 
 def make_router(settings, store, pipeline):
@@ -51,12 +61,12 @@ def make_router(settings, store, pipeline):
 
     @router.get("/library")
     def full_library():
-        return store.get_library(library_id)
+        return clean_public(store.get_library(library_id))
 
     @router.post("/library/sync")
     def sync_library():
         # Save only a complete sync. A failed refresh retains the previous snapshot.
-        return store.save_library(library_id, library.synchronize())
+        return clean_public(store.save_library(library_id, library.synchronize()))
 
     @router.get("/library/{collection_id}/original")
     def original(collection_id: str):
@@ -76,7 +86,7 @@ def make_router(settings, store, pipeline):
 
     @router.get("/sessions")
     def sessions():
-        return store.list_sessions()
+        return clean_public(store.list_sessions())
 
     @router.post("/sessions")
     def create(payload: SessionInput):
@@ -161,7 +171,7 @@ def make_router(settings, store, pipeline):
         session = store.get_session(session_id)
         return {
             "resources": [public_source(r) for r in session["resources"]],
-            "sources": session["sources"],
+            "sources": clean_public(session["sources"]),
         }
 
     @router.post("/sessions/{session_id}/sources/{source_id}/review")
@@ -221,20 +231,20 @@ def make_router(settings, store, pipeline):
         root = (settings.data_dir / session_id / "versions").resolve()
         if not path.is_relative_to(root) or not path.is_file():
             raise KeyError("文件不存在")
-        if kind == "report":
+        if kind in ("report", "content"):
             from fastapi.responses import JSONResponse
 
             return JSONResponse(
-                public_version(v)["report"],
+                public_version(v)["report"]
+                if kind == "report"
+                else clean_public(json.loads(path.read_text(encoding="utf-8"))),
                 headers={
-                    "Content-Disposition": f'attachment; filename="{v["number"]}-report.json"'
+                    "Content-Disposition": f'attachment; filename="{v["number"]}-{kind}.json"'
                 },
             )
         return FileResponse(
-            path,
-            filename=f"{v['number']}-"
-            + ("待核验-" if v["report"]["draft"] else "")
-            + names[kind],
+            clean_office_download(path),
+            filename=f"{v['number']}-{names[kind]}",
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             if kind == "outline"
             else "application/json",
