@@ -1,0 +1,224 @@
+apiVersion: app.sealos.io/v1
+kind: Template
+metadata:
+  name: qiming
+spec:
+  title: 启鸣 AI · 教学 Agent 工作台
+  url: ''
+  gitRepo: https://github.com/TJFFY3/qiming
+  author: ''
+  description: React + FastAPI 教学 Agent 工作台（导学案 / 限时练习 / 互动课件）。单容器同时提供页面与 API，数据保存在持久卷。FastGPT 与模型凭据通过环境变量注入，可留空后在应用变量页填写。
+  readme: ''
+  icon: ''
+  templateType: inline
+  locale: en
+  categories: []
+  defaults:
+    app_name:
+      type: string
+      value: qiming-${{ random(8) }}
+    app_host:
+      type: string
+      value: qiming-${{ random(8) }}
+  inputs:
+    fastgpt_url:
+      description: FastGPT 服务地址，例如 https://xxx/api（可留空，稍后在应用变量页填写）
+      type: string
+      default: ''
+      required: false
+    fastgpt_key:
+      description: FastGPT API 密钥（可留空）
+      type: string
+      default: ''
+      required: false
+    fastgpt_app_id:
+      description: 导学案 FastGPT 应用 ID（可留空；设置后 model_provider 默认走 fastgpt）
+      type: string
+      default: ''
+      required: false
+    fastgpt_datasets:
+      description: 知识库配置 JSON 数组，例如 [{"id":"真实ID","type":"folder","category":"reference","name":"教学资料"}]（可留空）
+      type: string
+      default: ''
+      required: false
+    model_provider:
+      description: 模型来源：openai 或 fastgpt（可留空，默认 openai）
+      type: string
+      default: openai
+      required: false
+    model_url:
+      description: OpenAI 兼容模型地址，例如 https://xxx/v1（可留空）
+      type: string
+      default: ''
+      required: false
+    model_key:
+      description: OpenAI 兼容模型密钥（可留空）
+      type: string
+      default: ''
+      required: false
+    model_name:
+      description: 模型名称（可留空）
+      type: string
+      default: ''
+      required: false
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ${{ defaults.app_name }}-qiming
+  annotations:
+    originImageName: harbor.bja.sealos.run/ns-3ctx61k3/qiming/qiming:20261020-141844
+    deploy.cloud.sealos.io/minReplicas: '1'
+    deploy.cloud.sealos.io/maxReplicas: '1'
+  labels:
+    app: ${{ defaults.app_name }}-qiming
+    cloud.sealos.io/app-deploy-manager: ${{ defaults.app_name }}-qiming
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  serviceName: ${{ defaults.app_name }}-qiming
+  selector:
+    matchLabels:
+      app: ${{ defaults.app_name }}-qiming
+  template:
+    metadata:
+      labels:
+        app: ${{ defaults.app_name }}-qiming
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 10
+      imagePullSecrets:
+      - name: harbor-registry-cred-hp-ns-3ctx61k3
+      containers:
+      - name: ${{ defaults.app_name }}-qiming
+        image: harbor.bja.sealos.run/ns-3ctx61k3/qiming/qiming:20261020-141844
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: FASTGPT_URL
+          value: ${{ inputs.fastgpt_url }}
+        - name: FASTGPT_KEY
+          value: ${{ inputs.fastgpt_key }}
+        - name: FASTGPT_APP_ID
+          value: ${{ inputs.fastgpt_app_id }}
+        - name: FASTGPT_DATASETS
+          value: ${{ inputs.fastgpt_datasets }}
+        - name: MODEL_PROVIDER
+          value: ${{ inputs.model_provider }}
+        - name: MODEL_URL
+          value: ${{ inputs.model_url }}
+        - name: MODEL_KEY
+          value: ${{ inputs.model_key }}
+        - name: MODEL_NAME
+          value: ${{ inputs.model_name }}
+        - name: DATA_DIR
+          value: /app/data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 51Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        ports:
+        - containerPort: 8010
+          name: http
+        startupProbe:
+          tcpSocket:
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        livenessProbe:
+          tcpSocket:
+            port: http
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 5
+        volumeMounts:
+        - name: vn-appvn-data
+          mountPath: /app/data
+  volumeClaimTemplates:
+  - metadata:
+      annotations:
+        path: /app/data
+        value: '2'
+      name: vn-appvn-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${{ defaults.app_name }}-qiming
+  labels:
+    app: ${{ defaults.app_name }}-qiming
+    cloud.sealos.io/app-deploy-manager: ${{ defaults.app_name }}-qiming
+spec:
+  ports:
+  - name: http
+    port: 8010
+    targetPort: 8010
+    protocol: TCP
+  selector:
+    app: ${{ defaults.app_name }}-qiming
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${{ defaults.app_name }}-qiming
+  labels:
+    cloud.sealos.io/app-deploy-manager: ${{ defaults.app_name }}-qiming
+    cloud.sealos.io/app-deploy-manager-domain: ${{ defaults.app_host }}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: 32m
+    nginx.ingress.kubernetes.io/server-snippet: |
+      client_header_buffer_size 64k;
+      large_client_header_buffers 4 128k;
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/client-body-buffer-size: 64k
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 64k
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '300'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '300'
+spec:
+  rules:
+  - host: ${{ defaults.app_host }}.${{ SEALOS_CLOUD_DOMAIN }}
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: ${{ defaults.app_name }}-qiming
+            port:
+              number: 8010
+  tls:
+  - hosts:
+    - ${{ defaults.app_host }}.${{ SEALOS_CLOUD_DOMAIN }}
+    secretName: ${{ SEALOS_CERT_SECRET_NAME }}
+---
+apiVersion: app.sealos.io/v1
+kind: App
+metadata:
+  name: ${{ defaults.app_name }}-qiming
+  labels:
+    app: ${{ defaults.app_name }}-qiming
+    cloud.sealos.io/app-deploy-manager: ${{ defaults.app_name }}-qiming
+spec:
+  data:
+    url: https://${{ defaults.app_host }}.${{ SEALOS_CLOUD_DOMAIN }}
+  displayType: normal
+  icon: ''
+  name: 启鸣 AI · 教学 Agent 工作台
+  type: link
