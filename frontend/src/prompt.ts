@@ -25,3 +25,24 @@ export function ensureOptimization(prompt: string, options: Options): string {
     ? prompt
     : applyOptimization(prompt, options);
 }
+
+export function formatLessonPrompt(
+  prompt: string,
+  settings: import("./api").Settings,
+): string {
+  const withOptions = ensureOptimization(prompt, settings.options);
+  const block = withOptions.match(
+    /【优化提示】\n[\s\S]*?【优化提示结束】/,
+  )?.[0];
+  const instruction = withOptions
+    .replace(/\n?【优化提示】\n[\s\S]*?【优化提示结束】/g, "")
+    .replace(
+      /^学科：化学\n教材版本：[^\n]*\n年级：[^\n]*\n章节 \/ 知识点：[^\n]*\n课时：[^\n]*(?:\n|$)/gm,
+      "",
+    )
+    .trim();
+  const context = `学科：化学\n教材版本：${settings.edition}\n年级：${settings.grade}\n章节 / 知识点：${settings.chapter}\n课时：${settings.period}`;
+  return [instruction, [context, block].filter(Boolean).join("\n")]
+    .filter(Boolean)
+    .join("\n\n");
+}

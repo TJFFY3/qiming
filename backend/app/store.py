@@ -7,7 +7,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from .prompting import ensure_optimization
+from .prompting import compose_prompt
 
 
 def now():
@@ -142,8 +142,8 @@ class Store:
                 **payload,
                 "teacher_settings": copy.deepcopy(session["settings"]),
             }
-            payload["prompt"] = ensure_optimization(
-                payload.get("prompt", ""), session["settings"].get("options")
+            payload["prompt"] = compose_prompt(
+                payload.get("prompt", ""), session["settings"]
             )
             value = dict(
                 id=uuid.uuid4().hex,

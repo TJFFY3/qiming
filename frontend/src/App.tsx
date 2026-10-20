@@ -24,7 +24,7 @@ import {
   type SessionSummary,
   type Job,
 } from "./api";
-import { applyOptimization, ensureOptimization } from "./prompt";
+import { applyOptimization, formatLessonPrompt } from "./prompt";
 import Composer from "./components/Composer";
 import OptimizeDialog from "./components/OptimizeDialog";
 import Conversation from "./components/Conversation";
@@ -133,9 +133,9 @@ export default function App() {
       setError("请填写章节 / 知识点");
       return;
     }
-    const instruction = ensureOptimization(
+    const instruction = formatLessonPrompt(
       suggestion || prompt.trim() || "请根据本课内容生成一份导学案。",
-      settings.options,
+      settings,
     );
     if (instruction.length > 8000) {
       setError("提示词超过8000字，请精简补充要求或备课内容。");
@@ -243,12 +243,15 @@ export default function App() {
   const apply = (options: Options) => {
     setSettings((old) => ({ ...old, options }));
     setPrompt((old) =>
-      applyOptimization(
-        old.trim() ||
-          (page === "conversation" && version
-            ? "请按以下优化要求调整当前导学案，保留未涉及内容。"
-            : "请根据本课内容生成一份导学案。"),
-        options,
+      formatLessonPrompt(
+        applyOptimization(
+          old.trim() ||
+            (page === "conversation" && version
+              ? "请按以下优化要求调整当前导学案，保留未涉及内容。"
+              : "请根据本课内容生成一份导学案。"),
+          options,
+        ),
+        { ...settings, options },
       ),
     );
     setModal(null);

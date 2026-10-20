@@ -1,6 +1,10 @@
 import { expect, test } from "vitest";
-import { defaultOptions } from "./api";
-import { applyOptimization, ensureOptimization } from "./prompt";
+import { defaultOptions, defaultSettings } from "./api";
+import {
+  applyOptimization,
+  ensureOptimization,
+  formatLessonPrompt,
+} from "./prompt";
 test("all optimization fields become visible Chinese prompt text and repeated apply replaces prior values", () => {
   const options = {
     ...defaultOptions(),
@@ -30,4 +34,17 @@ test("all optimization fields become visible Chinese prompt text and repeated ap
   expect(
     ensureOptimization(updated.replace("20 分钟", "25 分钟"), options),
   ).toContain("25 分钟");
+});
+
+test("lesson context appears before optimization and assembly is idempotent", () => {
+  const settings = { ...defaultSettings(), chapter: "钠及其化合物" };
+  const prompt = formatLessonPrompt(
+    applyOptimization("请根据本课内容生成一份导学案。", settings.options),
+    settings,
+  );
+  expect(prompt.indexOf("学科：化学")).toBeLessThan(
+    prompt.indexOf("【优化提示】"),
+  );
+  expect(prompt).toContain("课时：第一课时\n【优化提示】");
+  expect(formatLessonPrompt(prompt, settings)).toBe(prompt);
 });

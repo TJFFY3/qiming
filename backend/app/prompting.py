@@ -24,3 +24,26 @@ def ensure_optimization(prompt, options):
     return (
         prompt.strip() + "\n\n【优化提示】\n" + "\n".join(lines) + "\n【优化提示结束】"
     )
+
+
+LESSON_CONTEXT = r"^学科：化学\n教材版本：[^\n]*\n年级：[^\n]*\n章节 / 知识点：[^\n]*\n课时：[^\n]*(?:\n|$)"
+
+
+def instruction_text(prompt):
+    return re.sub(LESSON_CONTEXT, "", strip_optimization(prompt), flags=re.M).strip()
+
+
+def compose_prompt(prompt, settings):
+    text = ensure_optimization(prompt, settings.get("options"))
+    match = re.search(r"【优化提示】\n[\s\S]*?【优化提示结束】", text)
+    context = "\n".join(
+        [
+            "学科：化学",
+            f"教材版本：{settings.get('edition', '人教版 必修第一册')}",
+            f"年级：{settings.get('grade', '高一')}",
+            f"章节 / 知识点：{settings.get('chapter', '')}",
+            f"课时：{settings.get('period', '第一课时')}",
+        ]
+    )
+    tail = context + ("\n" + match.group(0) if match else "")
+    return "\n\n".join(part for part in [instruction_text(text), tail] if part)

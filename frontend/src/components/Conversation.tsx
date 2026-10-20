@@ -11,6 +11,7 @@ import {
   Focus,
 } from "lucide-react";
 import type { Session, Job, Version } from "../api";
+import { formatLessonPrompt } from "../prompt";
 import OutlinePreview from "./OutlinePreview";
 export default function Conversation({
   session,
@@ -56,18 +57,10 @@ export default function Conversation({
     <>
       <div className="conversation-content">
         <div className="user-bubble">
-          {lastRequest?.content || "请生成一份导学案。"}
-          <div className="bubble-meta">
-            学科：化学
-            <br />
-            教材版本：{session.settings.edition}
-            <br />
-            年级：{session.settings.grade}
-            <br />
-            章节 / 知识点：{session.settings.chapter}
-            <br />
-            课时：{session.settings.period}
-          </div>
+          {formatLessonPrompt(
+            lastRequest?.content || "请生成一份导学案。",
+            session.settings,
+          )}
         </div>
         <div className="assistant-row">
           <div className="assistant-avatar">
