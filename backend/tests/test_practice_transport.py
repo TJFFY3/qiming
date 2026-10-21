@@ -218,6 +218,57 @@ def transport_settings(**overrides):
     )
 
 
+def test_invalid_practice_json_retains_response_and_exact_parse_location():
+    invalid = '{"title":"练习",\n"choice": [}'
+    model = PracticeModelClient(
+        transport_settings(),
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {"message": {"content": invalid}, "finish_reason": "stop"}
+                    ]
+                },
+            )
+        ),
+    )
+    with pytest.raises(ModelOutputError) as captured:
+        model.generate_json([])
+    assert captured.value.response_text == invalid
+    assert "第2行" in str(captured.value)
+
+
+def test_truncated_practice_stream_retains_received_content():
+    partial = '{"title":"练习","choice":['
+    model = PracticeModelClient(
+        transport_settings(),
+        httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                stream=Chunks(
+                    [
+                        event(
+                            {
+                                "choices": [
+                                    {
+                                        "delta": {"content": partial},
+                                        "finish_reason": "length",
+                                    }
+                                ]
+                            }
+                        )
+                    ]
+                ),
+            )
+        ),
+    )
+    with pytest.raises(ModelOutputError, match="截断") as captured:
+        model.generate_json([])
+    assert captured.value.response_text == partial
+
+
 def test_done_returns_without_waiting_for_provider_connection_to_close():
     class CompletedStream(httpx.SyncByteStream):
         def __iter__(self):

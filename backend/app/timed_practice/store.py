@@ -6,6 +6,7 @@ import sqlite3
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from .prompting import compose_prompt
 
 
 def now():
@@ -125,6 +126,7 @@ class PracticeStore:
             ):
                 raise PracticeConflict("当前版本已更新，请选择最新版本后重试")
             request = copy.deepcopy(payload)
+            request["prompt"] = compose_prompt(request.get("prompt", ""), s["settings"])
             request["teacher_settings"] = s["settings"]
             request["resources"] = s["resources"]
             j = dict(
@@ -144,7 +146,7 @@ class PracticeStore:
                 (j["id"], sid, json.dumps(j, ensure_ascii=False)),
             )
             s["messages"].append(
-                dict(role="user", content=payload["prompt"], job_id=j["id"])
+                dict(role="user", content=request["prompt"], job_id=j["id"])
             )
             s["updated_at"] = now()
             self.write(db, "sessions", s)

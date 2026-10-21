@@ -283,6 +283,7 @@ test("practice resources present evidence without verification controls", async 
     />,
   );
   await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: /教材.*第1页/ }));
   expect(screen.getByText("原始摘录")).toBeTruthy();
   expect(screen.queryByRole("button", { name: /核对/ })).toBeNull();
   expect(screen.queryByText(/尚未核对|待核验/)).toBeNull();

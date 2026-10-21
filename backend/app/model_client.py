@@ -2,6 +2,16 @@ import json
 import httpx
 
 
+class ModelServiceError(ValueError):
+    """Connection, configuration or provider errors cannot be repaired as content."""
+
+
+class ModelOutputError(ValueError):
+    def __init__(self, message, response_text=""):
+        super().__init__(message)
+        self.response_text = response_text
+
+
 class ModelClient:
     def __init__(self, settings, transport=None):
         self.settings, self.transport = settings, transport
@@ -10,7 +20,7 @@ class ModelClient:
         s = self.settings
         if s.model_provider == "fastgpt":
             if not s.fastgpt_app_id or not s.fastgpt_url or not s.fastgpt_key:
-                raise ValueError(
+                raise ModelServiceError(
                     "FastGPT 生成应用未配置，请填写 fastgpt_app_id、地址和密钥"
                 )
             base = s.fastgpt_url.rstrip("/")
@@ -32,7 +42,7 @@ class ModelClient:
             }
         else:
             if not s.model_url or not s.model_key or not s.model:
-                raise ValueError(
+                raise ModelServiceError(
                     "模型未配置，请编辑 backend/app/config.py 中的 model_url、model_key、model"
                 )
             url = s.model_url.rstrip("/") + "/chat/completions"
@@ -53,7 +63,7 @@ class ModelClient:
                     body = response.json()
                 except ValueError:
                     response.raise_for_status()
-                    raise ValueError("模型服务返回非 JSON 响应")
+                    raise ModelServiceError("模型服务返回非 JSON 响应")
                 if isinstance(body, dict) and (
                     body.get("code") == 513001
                     or body.get("statusText") == "modelUnConfigured"
@@ -62,27 +72,52 @@ class ModelClient:
                         "FastGPT 生成应用未完成模型配置（513001 / modelUnConfigured）"
                     )
                 response.raise_for_status()
-                text = body["choices"][0]["message"]["content"]
-                if text.startswith("```"):
-                    text = text.strip().split("\n", 1)[1].rsplit("```", 1)[0]
-                value = json.loads(
-                    text,
-                    parse_constant=lambda _: (_ for _ in ()).throw(
-                        ValueError("JSON 包含非有限数值")
-                    ),
-                )
-                if not isinstance(value, dict):
-                    raise ValueError("模型 JSON 必须为对象")
-                return value
+                try:
+                    choice = body["choices"][0]
+                    text = choice["message"]["content"]
+                except (KeyError, TypeError, IndexError):
+                    raise ModelServiceError("模型服务响应缺少 choices[0].message.content") from None
+                if not isinstance(text, str):
+                    raise ModelOutputError("模型正文必须为 JSON 文字")
+                if choice.get("finish_reason") == "length":
+                    raise ModelOutputError(
+                        "模型输出被截断，请提高模型或 FastGPT 应用的输出上限，或缩小本课内容范围",
+                        response_text=text,
+                    )
+                return self._parse_json(text)
         except RuntimeError as exc:
-            raise ValueError(str(exc)) from None
+            raise ModelServiceError(str(exc)) from None
         except httpx.HTTPStatusError as exc:
-            raise ValueError(
+            raise ModelServiceError(
                 f"模型调用失败（HTTP {exc.response.status_code}），请检查模型或 FastGPT 应用配置与权限"
             ) from None
         except httpx.TimeoutException:
-            raise ValueError("模型响应超时，请重试") from None
+            raise ModelServiceError("模型响应超时，请重试") from None
         except httpx.HTTPError:
-            raise ValueError("无法连接模型服务，请检查服务地址") from None
-        except (ValueError, KeyError, TypeError, IndexError, AttributeError):
-            raise ValueError("模型返回无效 JSON 或响应格式不正确") from None
+            raise ModelServiceError("无法连接模型服务，请检查服务地址") from None
+
+    @staticmethod
+    def _parse_json(text):
+        original = text
+        text = text.strip()
+        if text.startswith("```"):
+            if "\n" not in text or not text.endswith("```"):
+                raise ModelOutputError("模型返回不完整的 JSON 代码块", original)
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        try:
+            value = json.loads(
+                text,
+                parse_constant=lambda _: (_ for _ in ()).throw(
+                    ValueError("JSON 包含非有限数值")
+                ),
+            )
+        except json.JSONDecodeError as exc:
+            raise ModelOutputError(
+                f"模型返回无效 JSON（第{exc.lineno}行第{exc.colno}列，收到{len(text)}字）：{exc.msg}",
+                original,
+            ) from None
+        except ValueError:
+            raise ModelOutputError("模型 JSON 包含非有限数值", original) from None
+        if not isinstance(value, dict):
+            raise ModelOutputError("模型 JSON 必须为对象", original)
+        return value

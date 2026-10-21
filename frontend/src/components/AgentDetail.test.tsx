@@ -248,10 +248,7 @@ test.each(agents)(
 test("courseware result source button opens its cited sources directly", async () => {
   await show(agents[1], "completed", true);
   fireEvent.click(screen.getByRole("button", { name: "查看来源" }));
-  const dialog = screen.getByRole("dialog", { name: "课件资料库" });
-  expect(
-    within(dialog)
-      .getByRole("button", { name: "本课引用来源" })
-      .getAttribute("aria-pressed"),
-  ).toBe("true");
+  const dialog = screen.getByRole("dialog", { name: "当前版本 · 来源快照" });
+  expect(within(dialog).queryByRole("button", { name: "选择文件" })).toBeNull();
+  expect(within(dialog).getByText("本次命中片段")).toBeTruthy();
 });

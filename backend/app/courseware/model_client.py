@@ -12,6 +12,10 @@ import httpx
 class CoursewareModelOutputError(ValueError):
     """The provider finished, but the response cannot be used as courseware JSON."""
 
+    def __init__(self, message, response_text=""):
+        super().__init__(message)
+        self.response_text = response_text
+
 
 @contextmanager
 def response_deadline(response, started, seconds):
@@ -67,9 +71,15 @@ class CoursewareModelClient:
                     ValueError("非有限数值")
                 ),
             )
+        except json.JSONDecodeError as exc:
+            raise CoursewareModelOutputError(
+                f"课件模型返回无效 JSON（第{exc.lineno}行第{exc.colno}列，收到{len(text)}字）",
+                response_text=text,
+            ) from None
         except (ValueError, TypeError):
             raise CoursewareModelOutputError(
-                "课件模型返回无效 JSON 或内容不完整"
+                "课件模型返回无效 JSON 或内容不完整",
+                response_text=text,
             ) from None
         if not isinstance(result, dict):
             raise CoursewareModelOutputError("课件模型响应必须为 JSON 对象")
@@ -142,13 +152,15 @@ class CoursewareModelClient:
                     response_deadline(response, started, total_timeout),
                 ):
                     response.raise_for_status()
-                    if "text/event-stream" not in response.headers.get(
-                        "content-type", ""
-                    ).lower():
+                    if (
+                        "text/event-stream"
+                        not in response.headers.get("content-type", "").lower()
+                    ):
                         body = json.loads(response.read())
-                        if body.get("code") == 513001 or body.get(
-                            "statusText"
-                        ) == "modelUnConfigured":
+                        if (
+                            body.get("code") == 513001
+                            or body.get("statusText") == "modelUnConfigured"
+                        ):
                             raise ValueError("互动课件生成应用未配置模型")
                         try:
                             choice = body["choices"][0]
@@ -159,12 +171,11 @@ class CoursewareModelClient:
                             ) from None
                         if choice.get("finish_reason") == "length":
                             raise CoursewareModelOutputError(
-                                "课件模型输出被截断，请减少课件页数或提高应用输出上限"
+                                "课件模型输出被截断，请减少课件页数或提高应用输出上限",
+                                response_text=text if isinstance(text, str) else "",
                             )
                         if not isinstance(text, str):
-                            raise CoursewareModelOutputError(
-                                "课件模型正文必须为文字"
-                            )
+                            raise CoursewareModelOutputError("课件模型正文必须为文字")
                         received = len(text)
                     else:
                         parts = []
@@ -186,7 +197,8 @@ class CoursewareModelClient:
                                 item = json.loads(raw)
                             except ValueError:
                                 raise CoursewareModelOutputError(
-                                    "课件模型流式响应包含无效 JSON 事件"
+                                    "课件模型流式响应包含无效 JSON 事件",
+                                    response_text="".join(parts),
                                 ) from None
                             if event_name == "error":
                                 raise ValueError(
@@ -223,7 +235,8 @@ class CoursewareModelClient:
                                 if choice.get("finish_reason"):
                                     if choice["finish_reason"] == "length":
                                         raise CoursewareModelOutputError(
-                                            "课件模型输出被截断，请减少课件页数或提高应用输出上限"
+                                            "课件模型输出被截断，请减少课件页数或提高应用输出上限",
+                                            response_text="".join(parts),
                                         )
                                     if choice["finish_reason"] == "stop":
                                         completed = True
@@ -233,7 +246,7 @@ class CoursewareModelClient:
                                 consume()
                                 event_name = ""
                                 data = []
-                                if done or completed:
+                                if done:
                                     break
                             elif line.startswith("event:"):
                                 event_name = line[6:].strip()
@@ -242,7 +255,8 @@ class CoursewareModelClient:
                         consume()
                         if not completed:
                             raise CoursewareModelOutputError(
-                                "课件模型流式连接中断，未收到完整结束标记，请重试"
+                                "课件模型流式连接中断，未收到完整结束标记，请重试",
+                                response_text="".join(parts),
                             )
                         text = "".join(parts)
         except httpx.HTTPStatusError as exc:
@@ -250,7 +264,9 @@ class CoursewareModelClient:
                 f"课件模型调用失败（HTTP {exc.response.status_code}），请检查服务与权限"
             ) from None
         except httpx.TimeoutException:
-            phase = "等待首段内容" if not received else f"接收内容（已收到{received}字）"
+            phase = (
+                "等待首段内容" if not received else f"接收内容（已收到{received}字）"
+            )
             raise ValueError(
                 f"课件模型在{phase}时超时：连续{read_timeout:g}秒没有返回数据，请稍后重试"
             ) from None

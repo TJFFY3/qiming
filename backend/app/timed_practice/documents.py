@@ -18,6 +18,8 @@ from .models import PracticeContent, text  # noqa: E402
 from ..publication import clean_public, clean_office_in_place  # noqa: E402
 from .equations import format_runs, format_content  # noqa: E402
 from .word_equations import format_word_conditions  # noqa: E402
+from .serialized_rich import decode_rich  # noqa: E402
+from ..content_quality import LEAK  # noqa: E402
 from ..chemistry_format import _rich as normalize_equations  # noqa: E402
 
 
@@ -26,6 +28,7 @@ def normalized(value):
 
 
 def canonical_rich(value):
+    value = decode_rich(value)
     if isinstance(value, list):
         value = [
             {
@@ -38,11 +41,56 @@ def canonical_rich(value):
     return format_runs(normalize_runs(normalize_equations(value)))
 
 
+EDITORIAL = re.compile(
+    r"(?:本题|该题|此题).{0,24}已(?:修改|改写|改为)|"
+    r"(?:请|需要)(?:删除|移除).{0,16}(?:编辑说明|本段说明)|"
+    r"(?:以下|本段)(?:为|是)(?:内部)?编辑说明"
+)
+
+
+def check_teaching_text(content):
+    for group in ("choice", "written", "optional"):
+        for index, question in enumerate(content.get(group, []), 1):
+            values = [question[field] for field in ("stem", "answer", "explanation")]
+            values += question.get("options") or []
+            for value in values:
+                prose = text(value)
+                if LEAK.search(prose) or EDITORIAL.search(prose):
+                    raise ValueError(
+                        f"{group}第{index}题混入内部编辑说明，请移除生成或修改说明，保留教学内容"
+                    )
+
+
+def validate_practice_word(paths):
+    validation = validate_paths(paths)
+    retained = []
+    for issue in validation["issues"]:
+        if (
+            issue.get("code") == "DOCX_EDIT_RESIDUE"
+            and issue.get("message") == "Possible editing residue: 注："
+        ):
+            # A note marker (also inside 标注：) says nothing about its meaning.
+            # Teaching text is checked before export; keep all OOXML checks.
+            validation["warnings"].append(
+                {
+                    **issue,
+                    "code": "DOCX_TEACHING_NOTE",
+                    "message": "包含补充说明，已保留原文。",
+                }
+            )
+        else:
+            retained.append(issue)
+    validation["issues"] = retained
+    validation["passed"] = not retained
+    return validation
+
+
 def validate_content(raw, requirements, sources):
     try:
         content = PracticeContent.model_validate(raw).model_dump(exclude_none=True)
     except ValidationError as exc:
         raise ValueError(str(exc)) from None
+    check_teaching_text(content)
     questions = content["choice"] + content["written"] + content["optional"]
     if not content["choice"] and not content["written"]:
         raise ValueError("至少需要一道必做题")
@@ -172,6 +220,7 @@ def source_issues(content, sources):
 
 
 def render(content, sources, directory, draft):
+    check_teaching_text(content)
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=False)
     paper = _template("限时练模板.docx")
@@ -248,7 +297,9 @@ def render(content, sources, directory, draft):
     _save(answers, directory / "answers.docx")
     for name in ("paper.docx", "answers.docx"):
         clean_office_in_place(directory / name)
-    validation = validate_paths([directory / "paper.docx", directory / "answers.docx"])
+    validation = validate_practice_word(
+        [directory / "paper.docx", directory / "answers.docx"]
+    )
     for kind in ("issues", "warnings"):
         for item in validation.get(kind, []):
             item["file"] = Path(item["file"]).name

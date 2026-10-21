@@ -150,3 +150,74 @@ def test_courseware_total_deadline_interrupts_blocked_stream_read():
         ).generate_json([])
     assert time.monotonic() - started < 1
     assert closed.is_set()
+
+
+def test_fastgpt_intermediate_node_stop_does_not_end_workflow_answer():
+    def remote(request):
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            stream=Chunks(
+                [
+                    event(
+                        {
+                            "choices": [
+                                {
+                                    "delta": {"reasoning_content": "准备内容"},
+                                    "finish_reason": "stop",
+                                }
+                            ]
+                        }
+                    ),
+                    event(
+                        {"choices": [{"delta": {"content": '{"title":"完整课件"}'}}]}
+                    ),
+                    event("[DONE]"),
+                ]
+            ),
+        )
+
+    result = CoursewareModelClient(
+        fastgpt_settings(), httpx.MockTransport(remote)
+    ).generate_json([])
+    assert result == {"title": "完整课件"}
+
+
+@pytest.mark.parametrize("streaming", [True, False])
+def test_truncated_response_keeps_received_content_for_diagnosis(streaming):
+    partial = '{"title":"20页课件","slides":['
+
+    def remote(request):
+        if streaming:
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                stream=Chunks(
+                    [
+                        event(
+                            {
+                                "choices": [
+                                    {
+                                        "delta": {"content": partial},
+                                        "finish_reason": "length",
+                                    }
+                                ]
+                            }
+                        )
+                    ]
+                ),
+            )
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": partial}, "finish_reason": "length"}
+                ]
+            },
+        )
+
+    with pytest.raises(CoursewareModelOutputError) as captured:
+        CoursewareModelClient(
+            fastgpt_settings(), httpx.MockTransport(remote)
+        ).generate_json([])
+    assert captured.value.response_text == partial

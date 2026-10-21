@@ -3,6 +3,36 @@ import { render } from "@testing-library/react";
 import { expect, test } from "vitest";
 import Rich from "./Rich";
 
+test.each([
+  "[Fe]+[CuSO_4]===[Cu]+[FeSO_4]",
+  "Fe+CuSO_{4}===Cu+FeSO_4",
+  [
+    { text: "Fe+CuSO_", bold: true },
+    { text: "4", sub: true },
+    { text: "===Cu+FeSO_" },
+    { text: "4", sub: true },
+  ],
+])(
+  "removes chemical subscript syntax in current and historical previews",
+  (value) => {
+    const { container } = render(<Rich value={value} />);
+    expect(container.textContent).toBe("Fe+CuSO4===Cu+FeSO4");
+    expect(
+      Array.from(container.querySelectorAll("sub"), (node) => node.textContent),
+    ).toEqual(["4", "4"]);
+  },
+);
+
+test("keeps answer blanks and ordinary identifiers while cleaning chemical subscripts", () => {
+  const { container } = render(
+    <Rich value="填空______；x_1、sample_2、ABC_3；[CO_2]______" />,
+  );
+  expect(container.textContent).toBe(
+    "填空______；x_1、sample_2、ABC_3；CO2______",
+  );
+  expect(container.querySelector("sub")?.textContent).toBe("2");
+});
+
 test("practice preview preserves equation lines and scripts in catalyst conditions", () => {
   const { container } = render(
     <Rich

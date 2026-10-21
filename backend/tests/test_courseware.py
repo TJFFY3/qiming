@@ -70,7 +70,13 @@ def app_for(tmp_path, replies=None, hits=True):
                 "choices": [
                     {
                         "message": {
-                            "content": json.dumps(responses.pop(0), ensure_ascii=False)
+                            "content": (
+                                lambda value: (
+                                    value
+                                    if isinstance(value, str)
+                                    else json.dumps(value, ensure_ascii=False)
+                                )
+                            )(responses.pop(0))
                         }
                     }
                 ]
@@ -210,10 +216,9 @@ def test_source_gap_does_not_gate_generation_and_uploads_are_isolated(tmp_path):
         )
 
 
-def test_invalid_model_paths_and_overflow_fail_without_pptx(tmp_path):
+def test_invalid_model_paths_fail_without_pptx(tmp_path):
     for bad in [
         dict(deck(), slides=[dict(deck()["slides"][0], image="/etc/passwd")]),
-        dict(deck(), slides=[dict(deck()["slides"][0], paragraphs=["字" * 201])]),
     ]:
         app, _ = app_for(tmp_path, [bad, bad, bad])
         with TestClient(app) as client:
@@ -509,3 +514,70 @@ def test_equation_content_errors_trigger_model_repair_before_publication(tmp_pat
         )
         assert "缺少连接符" in json.dumps(requests, ensure_ascii=False)
         assert "原子数不守恒" in json.dumps(requests, ensure_ascii=False)
+
+
+def test_malformed_model_json_is_repaired_before_export(tmp_path):
+    app, calls = app_for(tmp_path, ['{"title":"氧化还原","slides":[', deck()])
+    with TestClient(app) as client:
+        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        job = client.post(f"{PREFIX}/sessions/{sid}/generate", json={}).json()
+        done = client.get(PREFIX + "/jobs/" + job["id"]).json()
+        assert done["status"] == "completed", done
+        assert len(client.get(PREFIX + "/sessions/" + sid).json()["versions"]) == 1
+        assert len([call for call in calls if "messages" in call]) == 2
+
+
+def test_invalid_json_during_equation_repair_keeps_shared_retry_budget(tmp_path):
+    bad = deck()
+    bad["slides"][0]["paragraphs"] = ["2[Cu] + [O2] = [CuO]"]
+    app, calls = app_for(tmp_path, [bad, '{"title":', deck()])
+    with TestClient(app) as client:
+        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        job = client.post(f"{PREFIX}/sessions/{sid}/generate", json={}).json()
+        done = client.get(PREFIX + "/jobs/" + job["id"]).json()
+        assert done["status"] == "completed", done
+        assert len([call for call in calls if "messages" in call]) == 3
+
+
+def test_repeated_malformed_json_stops_after_three_calls_without_partial_artifact(
+    tmp_path,
+):
+    app, calls = app_for(tmp_path, ['{"slides":'] * 3)
+    with TestClient(app) as client:
+        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        job = client.post(f"{PREFIX}/sessions/{sid}/generate", json={}).json()
+        done = client.get(PREFIX + "/jobs/" + job["id"]).json()
+        assert done["status"] == "failed"
+        assert "JSON" in done["error"]
+        assert len([call for call in calls if "messages" in call]) == 3
+        assert not client.get(PREFIX + "/sessions/" + sid).json()["versions"]
+        assert not list(
+            (tmp_path / "courseware" / sid / "versions").glob("*/courseware.pptx")
+        )
+
+
+def test_connection_timeout_is_not_misreported_as_json_or_retried(tmp_path):
+    from backend.app.courseware.pipeline import CoursewarePipeline
+    from backend.app.courseware.store import CoursewareStore
+    from backend.app.courseware.models import CoursewareSettings
+
+    class NoHits:
+        def search(self, query):
+            return []
+
+    class TimeoutModel:
+        calls = 0
+
+        def generate_json(self, messages):
+            self.calls += 1
+            raise ValueError("课件模型在等待首段内容时超时")
+
+    settings = Settings(data_dir=tmp_path)
+    store = CoursewareStore(tmp_path / "courseware" / "agent.sqlite")
+    sid = store.create_session(CoursewareSettings().model_dump())["id"]
+    model = TimeoutModel()
+    pipeline = CoursewarePipeline(settings, store, NoHits(), model)
+    job = pipeline.start_generation(sid, {"prompt": "生成课件"})
+    pipeline.run(job["id"])
+    assert store.get_job(job["id"])["error"] == "课件模型在等待首段内容时超时"
+    assert model.calls == 1

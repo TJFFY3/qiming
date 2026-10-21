@@ -149,3 +149,73 @@ def test_triangle_geometry_is_not_a_reaction_and_bracketed_charge_is_preserved()
         ]
     }
     assert normalize_chemistry(raw) == (raw, [])
+
+
+def test_three_line_equations_rejoin_without_removing_prose_or_equation_breaks():
+    text = "观察下列反应：\nC + 2[CuO]\n高温\n= 2[Cu] + [CO2]↑\n3[CO] + [Fe2O3]\n高温\n= 2[Fe] + 3[CO2]\n思考：得失氧的关系。"
+    raw = {"sections": [{"blocks": [{"type": "paragraph", "content": text}]}]}
+    result, _ = normalize_chemistry(raw)
+    runs = result["sections"][0]["blocks"][0]["content"]
+    assert [r["text"] for r in runs if r.get("condition")] == ["高温", "高温"]
+    assert (
+        "".join(r["text"] for r in runs)
+        == "观察下列反应：\n[C] + 2[CuO] 高温 2[Cu] + [CO2]↑\n3[CO] + [Fe2O3] 高温 2[Fe] + 3[CO2]\n思考：得失氧的关系。"
+    )
+    assert normalize_chemistry(result) == (result, [])
+
+
+def test_three_line_condition_keeps_style_and_source_evidence():
+    raw = {
+        "sections": [
+            {
+                "blocks": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {"text": "[H2] + [Cl2]\n"},
+                            {"text": "点燃", "bold": True},
+                            {"text": "\n= 2[HCl]"},
+                        ],
+                    }
+                ]
+            }
+        ],
+        "sources": [{"evidence": "[H2] + [Cl2]\n点燃\n= 2[HCl]"}],
+    }
+    result, _ = normalize_chemistry(raw)
+    assert {"text": "点燃", "bold": True, "condition": True} in result["sections"][0][
+        "blocks"
+    ][0]["content"]
+    assert result["sources"] == raw["sources"]
+
+
+def test_three_line_prose_is_not_rejoined_as_chemistry():
+    raw = {
+        "sections": [
+            {
+                "blocks": [
+                    {
+                        "type": "paragraph",
+                        "content": "观察实验\n高温\n= 观察结果\n任务1\n点燃\n= 任务2",
+                    }
+                ]
+            }
+        ]
+    }
+    assert normalize_chemistry(raw) == (raw, [])
+
+
+def test_crlf_and_semantic_condition_lines_are_rejoined():
+    for content in [
+        "C + 2[CuO]\r\n高温\r\n= 2[Cu] + [CO2]↑\r\n思考",
+        [
+            {"text": "[H2] + [Cl2]\n"},
+            {"text": "光照", "condition": True},
+            {"text": "\n= 2[HCl]"},
+        ],
+    ]:
+        raw = {"sections": [{"blocks": [{"type": "paragraph", "content": content}]}]}
+        result, _ = normalize_chemistry(raw)
+        runs = result["sections"][0]["blocks"][0]["content"]
+        assert any(run.get("condition") for run in runs)
+        assert sum(run["text"].count("\n") for run in runs) <= 1

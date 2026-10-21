@@ -101,28 +101,12 @@ legend {
 }
 .brand {
   display: flex;
-  gap: 10px;
   align-items: center;
-  font-size: 17px;
-  font-weight: 650;
 }
-.brand-mark {
-  width: 33px;
+.brand-logo {
+  display: block;
+  width: auto;
   height: 33px;
-  border-radius: 10px;
-  background: var(--blue);
-  color: white;
-  display: grid;
-  place-items: center;
-}
-.brand-divider {
-  height: 16px;
-  width: 1px;
-  background: #dce1e9;
-  margin: 0 3px;
-}
-.brand .brand-divider ~ * {
-  font-weight: 400;
 }
 .header-actions {
   display: flex;
@@ -1182,14 +1166,18 @@ legend {
   color: #9ba7b9;
 }
 .condition {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
+  display: inline-block;
+  position: relative;
   line-height: 1;
   vertical-align: baseline;
 }
 .condition small {
-  font-size: 10px;
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  font-size: 0.7em;
+  white-space: nowrap;
 }
 .isotope {
   display: inline-grid;
@@ -1274,12 +1262,6 @@ legend {
 .compact .composer-footer > div {
   gap: 22px;
 }
-.chat-disclaimer {
-  color: #b3bac6;
-  font-size: 10px;
-  text-align: center;
-  padding: 13px 0 0;
-}
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -1361,9 +1343,6 @@ legend {
   .paper-preview {
     padding: 30px;
   }
-  .brand {
-    font-size: 14px;
-  }
   .site-header {
     padding: 0 30px;
   }
@@ -1376,14 +1355,8 @@ legend {
     height: 65px;
     padding: 0 18px;
   }
-  .brand {
-    font-size: 13px;
-    gap: 7px;
-  }
-  .brand-mark {
+  .brand-logo {
     height: 28px;
-    width: 28px;
-    border-radius: 8px;
   }
   .connection {
     display: none;
@@ -1757,9 +1730,6 @@ legend {
   .suggestions button {
     font-size: 10px;
     padding: 6px 10px;
-  }
-  .chat-disclaimer {
-    font-size: 9px;
   }
   .error-banner {
     margin: 9px 15px;
@@ -2168,4 +2138,13 @@ legend {
   .document-toolbar > div {
     justify-content: flex-start;
   }
+}
+
+.chemical-equation {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow-x: auto;
+  vertical-align: middle;
+  padding-top: 0.9em;
 }

@@ -16,8 +16,8 @@ SYSTEM = """你是独立的高中化学限时练习命题助手，只输出符�
 每题必须有完整题干、答案、解析、分数、真实估时、难度和题源。解析清楚简洁，通常1至3句，不重复抄写题干；选项不要重复A/B/C/D标号。单选恰好4项、答案A/B/C/D。optional不计分，必做分数合计等于满分，估时不得超过指定用时。不为通过校验虚填估时；默认新授课难度约7:2:1。
 origin为original/adapted/new；原题题干和选项必须能在实际source_ids的evidence中逐字定位；只有知识点参考而没有完整原题时，在允许出新题的前提下标为new，不能标为original。改编注明来源，自编标明需教师审核。只用原题不得偷换为改编或自编。
 化学用[H2O]、[Fe^3+]等标记或扁平语义run，系数正常基线；条件用condition，同位素用isotope。填空用下划线，过程题work_lines预留作答空间。
-化学式内数字必须下标，离子电荷上标；化学计量数保持基线，写2[H2O]而非[2H2O]。
-反应条件必须用独立condition run代替反应连接符，在等号上方显示，不得直接夹在两侧化学式之间，不能用括号代替连接符。
+化学式内数字必须下标，离子电荷上标；化学计量数保持基线，写2[H2O]而非[2H2O]。普通题干、选项、答案和解析优先使用JSON字符串，化学式在字符串中用[H2O]等方括号标记，由应用转换为原生上下标；仅在反应条件、同位素等确需语义格式时使用真正的扁平run数组，不要把每个元素和数字拆成大量run。禁止把run对象JSON序列化后嵌入text字符串，不得在正文显示text/sub/condition字段。返回前检查所有字符串、对象和数组均已闭合，题干必须完整，不得因格式复杂省略内容。
+反应条件必须用独立condition run代替反应连接符，在等号上方显示，不得直接夹在两侧化学式之间，不能用括号代替连接符。condition节点已经包含等号，前后正文不得再添加=、===或═，避免重复连接符。
 例如燃烧：[{"text":"2[CO]+[O2] "},{"text":"点燃","condition":true},{"text":" 2[CO2]"}]；
 加热分解：[{"text":"2[KClO3] "},{"text":"MnO2、△","condition":true},{"text":" 2[KCl]+3[O2]↑"}]。
 无条件的反应也必须有完整等号或可逆符号，不得缺省连接符。禁止HTML换行，题目分行用JSON字符串的换行符。
@@ -169,15 +169,36 @@ class PracticePipeline:
             for attempt in range(3):
                 try:
                     raw = self.model_call(jid, messages, attempt)
-                except ModelOutputError:
+                except ModelOutputError as exc:
+                    diagnostics = self.settings.data_dir / sid / "diagnostics" / jid
+                    diagnostics.mkdir(parents=True, exist_ok=True)
+                    (diagnostics / f"attempt-{attempt + 1}.json").write_text(
+                        json.dumps(
+                            {
+                                "attempt": attempt + 1,
+                                "error": self.settings.redact(str(exc)),
+                                "response_text": self.settings.redact(
+                                    exc.response_text
+                                ),
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                        encoding="utf-8",
+                    )
                     if attempt == 2:
                         raise ValueError(
-                            "模型连续返回无法解析的JSON，请检查限时练习专用模型应用的输出设置"
+                            "限时练习模型输出处理失败，已修复两轮：" + str(exc)
                         ) from None
+                    if exc.response_text:
+                        messages.append(
+                            dict(role="assistant", content=exc.response_text[:80000])
+                        )
                     messages.append(
                         dict(
                             role="user",
-                            content="上次响应无法解析为JSON。请直接返回符合Schema的完整JSON对象，不要附加说明或省略内容。",
+                            content="上次响应无法解析为JSON。请修正下面的具体错误，直接返回符合Schema的完整JSON对象，不要附加说明或省略内容；正确转义字符串内的引号、换行和反斜杠，化学富文本必须使用真正的扁平run数组，不得嵌入未转义的JSON。保留原题量、用时和分值要求。错误："
+                            + str(exc),
                         )
                     )
                     continue

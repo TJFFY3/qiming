@@ -10,7 +10,11 @@ from backend.app.equation_validation import (
 def test_final_validation_rejects_unbalanced_equations_and_accepts_balanced_ones():
     with pytest.raises(ValueError, match="原子数不守恒"):
         validate_outline(
-            {"sections": [{"blocks": [{"type": "paragraph", "content": "H2 + O2 = H2O"}]}]}
+            {
+                "sections": [
+                    {"blocks": [{"type": "paragraph", "content": "H2 + O2 = H2O"}]}
+                ]
+            }
         )
 
     validate_outline(
@@ -20,6 +24,17 @@ def test_final_validation_rejects_unbalanced_equations_and_accepts_balanced_ones
             ]
         }
     )
+
+
+def test_latex_subscript_markers_do_not_bypass_atom_balance_validation():
+    with pytest.raises(ValueError, match="原子数不守恒"):
+        validate_outline(
+            {
+                "sections": [
+                    {"blocks": [{"type": "paragraph", "content": "[H_2]+[O_2]=[H_2O]"}]}
+                ]
+            }
+        )
 
 
 def test_final_validation_checks_study_guide_patch_replacements():

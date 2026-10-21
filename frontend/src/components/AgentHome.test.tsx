@@ -99,3 +99,55 @@ test("practice Enter keeps composing and Ctrl+Enter submits once with the select
   );
   expect(submitted.filter((r) => r.url.endsWith("/generate"))).toHaveLength(1);
 });
+
+test.each([
+  { id: "guide", product: "导学案", submit: "生成导学案" },
+  { id: "courseware", product: "互动课件", submit: "生成互动课件" },
+  { id: "practice", product: "限时练习", submit: "生成限时练习" },
+])(
+  "$product default generation sends the complete lesson prompt",
+  async (agent) => {
+    window.history.replaceState(null, "", "#" + agent.id);
+    let submitted = "";
+    let settings: unknown;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const body = init?.body ? JSON.parse(String(init.body)) : null;
+        if (url.endsWith("/health"))
+          return Response.json({ ready: true, missing: [] });
+        if (init?.method === "POST" && url.endsWith("/sessions"))
+          settings = body;
+        if (url.endsWith("/generate")) {
+          submitted = body.prompt;
+          return Response.json({
+            id: "job",
+            session_id: "lesson",
+            kind: "generation",
+            status: "failed",
+            stages: [],
+            error: "测试结束",
+          });
+        }
+        return Response.json({
+          id: "lesson",
+          settings,
+          versions: [],
+          messages: [],
+          jobs: [],
+          resources: [],
+          sources: [],
+        });
+      }),
+    );
+    render(<App />);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole("button", { name: agent.submit }));
+    await waitFor(() =>
+      expect(submitted).toContain(
+        `请根据本课内容生成一份${agent.product}。\n\n学科：化学\n教材版本：人教版 必修第一册\n年级：高一\n章节 / 知识点：第三节 氧化还原反应\n课时：第一课时`,
+      ),
+    );
+  },
+);

@@ -19,6 +19,19 @@ const categories: Record<string, string> = {
   practice: "必刷题",
   exam: "高考真题",
 };
+export type ResourcesProps = {
+  sources: Source[];
+  resources: Source[];
+  onUpload: (f: File, category: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
+  onClose: () => void;
+  busy: boolean;
+  snapshot?: boolean;
+  recall?: boolean;
+  sourceIssues?: string[];
+  libraryPath?: string;
+  productName?: string;
+};
 export default function Resources({
   sources,
   resources,
@@ -29,17 +42,9 @@ export default function Resources({
   snapshot = false,
   recall = false,
   sourceIssues = [],
-}: {
-  sources: Source[];
-  resources: Source[];
-  onUpload: (f: File, category: string) => Promise<void>;
-  onDelete?: (id: string) => Promise<void>;
-  onClose: () => void;
-  busy: boolean;
-  snapshot?: boolean;
-  recall?: boolean;
-  sourceIssues?: string[];
-}) {
+  libraryPath = "",
+  productName = "导学案",
+}: ResourcesProps) {
   const notes = sourceNotes(sourceIssues);
   const [category, setCategory] = useState("textbook");
   const [uploading, setUploading] = useState(false);
@@ -48,16 +53,17 @@ export default function Resources({
   const close = useCallback(onClose, [onClose]);
   const all = Array.from(
     new Map(
-      [...resources, ...(snapshot || recall ? sources : [])].map((s) => [
-        s.id,
-        s,
-      ]),
+      (snapshot ? sources : [...resources, ...(recall ? sources : [])]).map(
+        (s) => [s.id, s],
+      ),
     ).values(),
   );
   const upload = async (file: File) => {
+    if (busy || uploading) return;
     setUploading(true);
     setError("");
     try {
+      if (file.size > 20 * 1024 * 1024) throw new Error("文件超过20MB");
       await onUpload(file, category);
     } catch (e) {
       setError((e as Error).message);
@@ -81,8 +87,8 @@ export default function Resources({
       <div className="modal-scroll">
         <p className="panel-description">
           {snapshot || recall
-            ? "此处仅保留本次导学案生成使用的命中片段。"
-            : "浏览 FastGPT 知识库全部资料与片段，包括 PPT；导学案生成时按需求检索。"}
+            ? `此处仅保留本次${productName}生成使用的命中片段。`
+            : `浏览 FastGPT 知识库全部资料与片段，包括 PPT；${productName}生成时按需求检索。`}
         </p>
         {!snapshot && !recall && (
           <div
@@ -135,7 +141,7 @@ export default function Resources({
             />
           </div>
         )}
-        {!snapshot && !recall && <KnowledgeLibrary />}
+        {!snapshot && !recall && <KnowledgeLibrary libraryPath={libraryPath} />}
         {notes.length > 0 && (
           <div className="source-issues">
             <strong>本版本资料说明</strong>
@@ -215,7 +221,9 @@ export function SourceCard({
       >
         <FileText size={20} />
         <div>
-          <strong>{sourceTitle(library ? source.locator : source.title)}</strong>
+          <strong>
+            {sourceTitle(library ? source.locator : source.title)}
+          </strong>
           <small>
             {categories[source.category] || "参考资料"} · {source.locator}
           </small>

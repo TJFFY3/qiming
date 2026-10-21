@@ -66,3 +66,36 @@ def test_legacy_revision_ignores_source_review_gate_without_rewriting_history(tm
     original = json.loads((tmp_path / "v001/content.json").read_text())
     updated = json.loads((tmp_path / "v002/content.json").read_text())
     assert original["sections"][1:] == updated["sections"][1:]
+
+
+def test_rejoined_condition_equation_has_no_internal_word_line_breaks(tmp_path):
+    import copy
+    from zipfile import ZipFile
+    from lxml import etree
+    from backend.app.chemistry_format import normalize_chemistry
+
+    raw = copy.deepcopy(SAMPLE)
+    raw["outline"]["sections"][0]["blocks"].insert(
+        0,
+        {
+            "id": "equation-line",
+            "type": "paragraph",
+            "content": "C + 2[CuO]\n高温\n= 2[Cu] + [CO2]↑",
+        },
+    )
+    normalized, _ = normalize_chemistry(raw)
+    DocumentEngine().render(normalized, tmp_path / "joined", "v001", True)
+    ns = {
+        "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+        "m": "http://schemas.openxmlformats.org/officeDocument/2006/math",
+    }
+    with ZipFile(tmp_path / "joined/outline.docx") as archive:
+        root = etree.fromstring(archive.read("word/document.xml"))
+        paragraphs = root.xpath(
+            '//w:p[.//m:limUpp/m:lim//m:t[text()="高温"]]', namespaces=ns
+        )
+        assert len(paragraphs) == 1
+        paragraph = paragraphs[0]
+        text = "".join(paragraph.xpath(".//w:t/text()", namespaces=ns))
+        assert "CuO" in text and "Cu" in text and "CO" in text
+        assert not paragraph.xpath(".//w:br", namespaces=ns)

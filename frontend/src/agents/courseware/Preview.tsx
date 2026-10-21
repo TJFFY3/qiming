@@ -11,7 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { fileUrl } from "./api";
-import type { RichText, Run, Slide, Version } from "./types";
+import type { RichText, Slide, Version } from "./types";
+import { chemistryRuns, type Run } from "../../chemistryFormat";
 function formula(text: string): Run[] {
   const result: Run[] = [];
   const parts = text.split(/(\[[^\[\]]+\])/g);
@@ -30,10 +31,11 @@ function formula(text: string): Run[] {
   return result;
 }
 export function Rich({ value }: { value: RichText }) {
+  const normalized = chemistryRuns(value) ?? "";
   const runs =
-    typeof value === "string"
-      ? formula(value)
-      : value.flatMap((run) =>
+    typeof normalized === "string"
+      ? formula(normalized)
+      : normalized.flatMap((run) =>
           run.condition || run.isotope
             ? [run]
             : formula(run.text).map((part) => ({

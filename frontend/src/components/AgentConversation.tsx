@@ -384,15 +384,8 @@ export function RevisionSuggestions({
 }
 export function ConversationComposer({
   children,
-  disclaimer = "内容由 AI 辅助生成，请结合教材与学情复核后使用。",
 }: {
   children: ReactNode;
-  disclaimer?: string;
 }) {
-  return (
-    <div className="chat-composer-wrap">
-      {children}
-      <p className="chat-disclaimer">{disclaimer}</p>
-    </div>
-  );
+  return <div className="chat-composer-wrap">{children}</div>;
 }

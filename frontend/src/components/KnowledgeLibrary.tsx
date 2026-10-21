@@ -21,7 +21,11 @@ type Library = {
   chunk_count: number;
   synced_at: string | null;
 };
-export default function KnowledgeLibrary() {
+export default function KnowledgeLibrary({
+  libraryPath = "",
+}: {
+  libraryPath?: string;
+}) {
   const [data, setData] = useState<Library>(),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
@@ -30,8 +34,9 @@ export default function KnowledgeLibrary() {
     let cancelled = false;
     (async () => {
       try {
-        let value = await api<Library>("/library");
-        if (!value.synced_at) value = await post<Library>("/library/sync", {});
+        let value = await api<Library>(libraryPath + "/library");
+        if (!value.synced_at)
+          value = await post<Library>(libraryPath + "/library/sync", {});
         if (!cancelled) setData(value);
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
@@ -42,12 +47,12 @@ export default function KnowledgeLibrary() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [libraryPath]);
   const sync = async () => {
     setLoading(true);
     setError("");
     try {
-      setData(await post<Library>("/library/sync", {}));
+      setData(await post<Library>(libraryPath + "/library/sync", {}));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -100,7 +105,7 @@ export default function KnowledgeLibrary() {
         onChange={(e) => setQuery(e.target.value)}
       />
       {documents.map((d) => (
-        <DocumentCard key={d.id} document={d} />
+        <DocumentCard key={d.id} document={d} libraryPath={libraryPath} />
       ))}
       {!loading && !documents.length && (
         <p className="field-hint">
@@ -110,7 +115,13 @@ export default function KnowledgeLibrary() {
     </section>
   );
 }
-function DocumentCard({ document: d }: { document: Document }) {
+function DocumentCard({
+  document: d,
+  libraryPath,
+}: {
+  document: Document;
+  libraryPath: string;
+}) {
   const [open, setOpen] = useState(false),
     [limit, setLimit] = useState(20);
   return (
@@ -138,7 +149,7 @@ function DocumentCard({ document: d }: { document: Document }) {
         <div className="source-details">
           <a
             className="button secondary small"
-            href={`/api/library/${encodeURIComponent(d.id)}/original`}
+            href={`/api${libraryPath}/library/${encodeURIComponent(d.id)}/original`}
             target="_blank"
             rel="noreferrer"
           >

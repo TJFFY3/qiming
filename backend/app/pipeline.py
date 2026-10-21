@@ -6,10 +6,12 @@ import shutil
 import uuid
 from pathlib import Path
 from .store import now
+from .model_client import ModelOutputError, ModelServiceError
 from .prompting import instruction_text
 from .chemistry_format import normalize_chemistry
 from .equation_validation import validate_study_guide_result
 from .content_quality import check_student_content
+from .study_guide_context import revision_source_context
 from .table_repair import (
     repair_empty_headers,
     header_target,
@@ -24,7 +26,7 @@ SYSTEM = """你是高中化学教学设计助手。基于教师要求与实际�
 学习目标用“通过……能够……”。设计可执行自学任务、辨析问题、留白和教学表格；强调重点不删除其他必学内容。
 化学式使用 [H2O]、[SO4^2-] 标记，系数保持正常基线。条件用 {"text":"点燃","condition":true}，run 数组必须扁平。
 系数必须在方括号外：2[KMnO4]，禁止 [2KMnO4]。加热分解用 {"text":"△","condition":true} 放在等号上方，不写 △→ 或 Δ→。
-例如碳酸钙分解必须输出 [{"text":"[CaCO3] "},{"text":"高温","condition":true},{"text":" [CaO] + [CO2]↑"}]。不得输出 ===高温=== 等纯文本条件标记或 HTML <br>；换行使用 JSON 字符串中的换行符。
+例如碳酸钙分解必须输出 [{"text":"[CaCO3] "},{"text":"高温","condition":true},{"text":" [CaO] + [CO2]↑"}]。不得输出 ===高温=== 等纯文本条件标记或 HTML <br>；正文和不同方程式之间的换行使用 JSON 字符串中的换行符。同一方程式的反应物、condition和生成物必须连续放在同一个扁平 run 数组中，不得在反应条件前后插入换行、拆成多个段落或将条件单独放在一行。
 只使用标准 outline.sections[].blocks[]，paragraph 使用 content，table 使用 headers 和 rows（只含数据行）。每个表头必须是明确且非空的文字标签，学生答题留白只放在 rows 单元格中，用 null 表示；每行列数必须与 headers 一致。
 输出 {"outline":符合schema的对象,"source_gaps":字符串数组,"source_conflicts":字符串数组}。资料没有覆盖或存在冲突时如实记录。
 显式中文“优化提示”是本次教学要求，必须逐项执行；若教师编辑了提示正文，以正文要求为准，结构化 teacher_settings 用于上下文参考。
@@ -108,7 +110,14 @@ class Pipeline:
                     for v in session["versions"]
                     if v["id"] == request["base_version_id"]
                 )
-                sources = base["sources"]
+                # Retain retrieved evidence, but use the current upload set. Old
+                # snapshots remain immutable, including deleted upload evidence.
+                sources = [
+                    copy.deepcopy(source)
+                    for source in base["sources"]
+                    if source.get("source_type") != "upload"
+                    and source.get("locator") != "上传原文件（页码见摘录，非印刷页码）"
+                ]
             else:
                 query = (
                     " ".join(
@@ -123,30 +132,31 @@ class Pipeline:
                     sources = []
                 else:
                     sources = self.retriever.search(query)
-                previous = {x["id"]: x for x in session["sources"]}
-                for source in sources:
-                    old = previous.get(source["id"])
-                    if old and old.get("evidence") == source["evidence"]:
-                        source["verified"] = bool(old.get("verified"))
-                        source["review_note"] = old.get("review_note", "")
-                sources += [
-                    {
-                        k: v
-                        for k, v in r.items()
-                        if k not in ("file_path", "text", "pages")
-                    }
-                    | {"evidence": r["text"]}
-                    for r in session["resources"]
-                ]
-                if sum(len(s["evidence"]) for s in sources) > 120000:
-                    raise ValueError(
-                        "资料总量超过120000字符，请减少上传资料或缩小检索范围"
-                    )
-                self.store.update_session(sid, lambda s: s.update(sources=sources))
-                if not sources:
-                    raise ValueError(
-                        "未检索到本课资料，请调整章节、上传资料或检查知识库"
-                    )
+            previous = {x["id"]: x for x in session["sources"]}
+            for source in sources:
+                old = previous.get(source["id"])
+                if old and old.get("evidence") == source["evidence"]:
+                    source["verified"] = bool(old.get("verified"))
+                    source["review_note"] = old.get("review_note", "")
+            sources += [
+                {
+                    k: v
+                    for k, v in r.items()
+                    if k not in ("file_path", "text", "pages")
+                }
+                | {"evidence": r["text"], "source_type": "upload"}
+                for r in session["resources"]
+            ]
+            sources = list({s["id"]: s for s in sources}.values())
+            if sum(len(s["evidence"]) for s in sources) > 120000:
+                raise ValueError(
+                    "资料总量超过120000字符，请减少上传资料或缩小检索范围"
+                )
+            self.store.update_session(sid, lambda s: s.update(sources=sources))
+            if not sources and not revision:
+                raise ValueError(
+                    "未检索到本课资料，请调整章节、上传资料或检查知识库"
+                )
             self.stage(
                 job_id, 2, "生成教学内容" if not revision else "按要求修改教学内容"
             )
@@ -162,15 +172,12 @@ class Pipeline:
             )
             if revision:
                 context["current_outline"] = base["content"]
-                # Keep the revision task visible within workflow context limits; full evidence stays in immutable source snapshots.
-                context["sources"] = [
-                    {k: v for k, v in source.items() if k != "evidence"}
-                    | {
-                        "evidence_excerpt": source["evidence"][:800],
-                        "excerpt_truncated": len(source["evidence"]) > 800,
-                    }
-                    for source in sources
-                ]
+                context["sources"] = revision_source_context(sources, request["prompt"])
+                context["source_context_notes"] = (
+                    "资料在总量预算内优先节选与修改要求相关的原文，[…]表示省略。"
+                    "excerpt_truncated=true不代表已读完整资料；若节选不能支持修改，"
+                    "请记录source_gaps，不得补造缺失的实验条件或证据。"
+                )
                 system += '\n修改时返回 {"mode":"patch","changes":[{"block_id":"现有ID","replacement":[标准块]}]}。仅替换现有块，保留未涉及内容。若明确要求改目标、标题或新增章节，返回 {"mode":"full","outline":完整对象,"source_gaps":[],"source_conflicts":[]}。'
             messages = [
                 {"role": "system", "content": system},
@@ -192,15 +199,17 @@ class Pipeline:
             result = None
             last_error = None
             raw, target, repairs = None, None, []
+            header_feedback = []
             for attempt in range(3):
                 try:
                     if target is not None:
                         response = self.model.generate_json(
-                            header_repair_messages(target)
+                            header_repair_messages(target) + header_feedback
                         )
                         raw, note = apply_header_repair(raw, target, response)
                         repairs.append(note)
                         target = None
+                        header_feedback = []
                     else:
                         raw = self.model.generate_json(messages)
                         repairs = []
@@ -213,13 +222,17 @@ class Pipeline:
                         self.stage(job_id, 3, "校验内容结构与来源")
                     check_student_content(raw)
                     if revision and raw.get("mode") == "patch":
+                        source_payload = self.controlled_payload(raw, sources)
                         patch = {
                             "base_sha256": base["content_sha256"],
                             "changes": raw.get("changes"),
                         }
                         # revise_document validates block IDs, hash and all changes before writing a new directory.
                         result = self.documents.revise(
-                            Path(base["directory"]), patch, destination, version_name
+                            Path(base["directory"]), patch, destination, version_name,
+                            sources=sources,
+                            source_gaps=source_payload["source_gaps"],
+                            source_conflicts=source_payload["source_conflicts"],
                         )
                         self.reject_noop(result, base, destination)
                         change_kind = "局部修改"
@@ -263,8 +276,30 @@ class Pipeline:
                         self.reject_noop(result, base, destination)
                     change_kind = "结构修改" if revision else "首次生成"
                     break
+                except ModelServiceError:
+                    raise
                 except (ValueError, KeyError, TypeError) as exc:
                     last_error = exc
+                    if isinstance(exc, ModelOutputError):
+                        diagnostics = self.settings.data_dir / sid / "diagnostics" / job_id
+                        diagnostics.mkdir(parents=True, exist_ok=True)
+                        (diagnostics / f"attempt-{attempt + 1}.json").write_text(
+                            json.dumps({
+                                "attempt": attempt + 1,
+                                "error": self.settings.redact(str(exc)),
+                                "response_text": self.settings.redact(exc.response_text),
+                            }, ensure_ascii=False, indent=2), encoding="utf-8",
+                        )
+                        if attempt == 2:
+                            raise ContentRepairFailure(str(exc)) from None
+                        feedback = header_feedback if target is not None else messages
+                        if exc.response_text:
+                            feedback.append({"role": "assistant", "content": exc.response_text})
+                        feedback.append({
+                            "role": "user",
+                            "content": "上次响应无法解析为完整 JSON。请修复以下具体错误，直接返回符合 schema 的完整 JSON 对象，不附加说明或省略正文。正确转义字符串中的引号、换行和反斜杠；化学富文本使用真正的扁平 run 数组，不把未转义的 JSON 嵌入字符串。保留教师要求与其他内容。错误：" + str(exc),
+                        })
+                        continue
                     # Source policy failures cannot be repaired by a model changing claims.
                     if getattr(exc, "issues", None) and any(
                         x.get("code") == "MISSING_SOURCES" for x in exc.issues

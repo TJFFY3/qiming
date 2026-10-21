@@ -9,11 +9,52 @@ FORMULA = re.compile(rf"(?:{ATOM}|\((?:{ATOM})+\)\d*)+")
 TOKEN = re.compile(
     r"\[[^\[\]]+\]|(?<![A-Za-z_\[])([A-Z][A-Za-z0-9()]*)(?![A-Za-z0-9_\]^]|[+-](?:\s|$))"
 )
-CONDITION = re.compile(
-    r"={2,}[ \t]*([^=\r\n\\(),]{1,30}?)[ \t]*={2,}|([△Δ])[ \t]*(?:→|⟶|=+)"
-)
+CONDITION = re.compile(r"=+[ \t]*([^=\r\n\\(),]{1,30}?)[ \t]*=+|([△Δ])[ \t]*(?:→|⟶|=+)")
 BREAK = re.compile(r"<br\s*/?>", re.I)
 SPECIAL = ("condition", "sub", "sup", "charge", "isotope")
+SUBSCRIPT_MARKER = re.compile(r"_(?:\{(\d+)\}|(\d+))")
+MARKED_FORMULA = re.compile(
+    r"(?<![A-Za-z0-9_])\d*(?P<body>[A-Z][A-Za-z0-9()]*"
+    r"(?:_(?:\{\d+\}|\d+)[A-Za-z0-9()]*)+)(?=$|[^A-Za-z0-9_{}]|_{2,})"
+)
+
+
+def normalize_subscript_markers(value):
+    """Remove only numeric subscript syntax inside recognized chemical formulas."""
+    if isinstance(value, str):
+        runs = [{"text": value}]
+    elif isinstance(value, list) and all(
+        isinstance(run, dict) and isinstance(run.get("text"), str) for run in value
+    ):
+        runs = value
+    else:
+        return value
+    text = "".join(run["text"] for run in runs)
+    removed = set()
+    for match in MARKED_FORMULA.finditer(text):
+        body = match["body"]
+        plain = SUBSCRIPT_MARKER.sub(lambda m: m[1] or m[2], body)
+        if not FORMULA.fullmatch(plain):
+            continue
+        for marker in SUBSCRIPT_MARKER.finditer(body):
+            removed.update(
+                match.start("body") + index
+                for index in range(marker.start(), marker.end())
+                if body[index] in "_{}"
+            )
+    if not removed:
+        return value
+    result, offset = [], 0
+    for run in runs:
+        fragment = "".join(
+            char
+            for index, char in enumerate(run["text"], offset)
+            if index not in removed
+        )
+        offset += len(run["text"])
+        if fragment:
+            result.append({**run, "text": fragment})
+    return "".join(run["text"] for run in result) if isinstance(value, str) else result
 
 
 def _has_formula(text):
@@ -34,6 +75,15 @@ def _mark_formulas(text):
 
 
 def _coefficient(text):
+    # Brackets mark a molecule, not an entire reaction. Older model outputs
+    # wrapped the whole equation, causing every coefficient to become subscript.
+    text = re.sub(
+        r"\[([^\[\]]+)\]",
+        lambda m: (
+            m[1] if re.search(r"=|→|⟶|⇌|↔", m[1]) and _has_formula(m[1]) else m[0]
+        ),
+        text,
+    )
     # A stoichiometric coefficient must stay outside formula subscript markup.
     return re.sub(
         r"\[(\d+)([A-Z][A-Za-z0-9()]*)\]",
@@ -56,8 +106,64 @@ def legacy_runs(text):
     )
 
 
+def _equation_side(text):
+    """Recognize a complete neutral formula side; never join prose lines."""
+    for term in text.strip().split("+"):
+        term = re.sub(r"[\s↑↓]", "", term)
+        term = re.sub(r"^\d+", "", term)
+        if term.startswith("[") and term.endswith("]"):
+            term = term[1:-1]
+        if not FORMULA.fullmatch(term):
+            return False
+    return True
+
+
+SPLIT_CONDITION = re.compile(
+    r"^([^\r\n]+?)([ \t]*\r?\n[ \t]*)"
+    r"(高温|加热|点燃|通电|光照|△|Δ|催化剂)"
+    r"([ \t]*\r?\n[ \t]*(?:=+|→|⟶)[ \t]*)([^\r\n]+)(?=\r?$)",
+    re.M,
+)
+
+
+def _join_equation_lines(runs):
+    text = "".join(r["text"] for r in runs)
+    edits = []
+    for match in SPLIT_CONDITION.finditer(text):
+        if _equation_side(match[1]) and _equation_side(match[5]):
+            edits.extend(
+                [
+                    (match.start(2), match.end(2), " ==="),
+                    (match.start(4), match.end(4), "=== "),
+                ]
+            )
+    if not edits:
+        return runs
+    spans, offset = [], 0
+    for run in runs:
+        spans.append((offset, offset + len(run["text"]), run))
+        offset += len(run["text"])
+    result = []
+
+    def keep(start, end):
+        for left, right, run in spans:
+            lo, hi = max(start, left), min(end, right)
+            if lo < hi:
+                result.append({**run, "text": text[lo:hi]})
+
+    position = 0
+    for start, end, replacement in edits:
+        keep(position, start)
+        style = next(run for left, right, run in spans if left <= start < right)
+        result.append({**style, "text": replacement})
+        position = end
+    keep(position, len(text))
+    return result
+
+
 def _group(runs, equation_context=False):
     runs = [{**r, "text": _coefficient(BREAK.sub("\n", r["text"]))} for r in runs]
+    runs = _join_equation_lines(runs)
     text = "".join(r["text"] for r in runs)
     matches, lines, offset = [], ([(0, len(text))] if equation_context else []), 0
     for line in text.split("\n"):
@@ -157,11 +263,34 @@ def _group(runs, equation_context=False):
     return merged
 
 
+def _join_semantic_condition_lines(value):
+    value = [dict(run) if isinstance(run, dict) else run for run in value]
+    for i in range(1, len(value) - 1):
+        left, condition, right = value[i - 1 : i + 2]
+        if not all(
+            isinstance(run, dict) and isinstance(run.get("text"), str)
+            for run in (left, condition, right)
+        ) or not condition.get("condition"):
+            continue
+        end = re.search(r"[ \t]*\r?\n[ \t]*$", left["text"])
+        start = re.match(r"[ \t]*\r?\n[ \t]*(?:=+|→|⟶)?[ \t]*", right["text"])
+        if not end or not start:
+            continue
+        lhs = left["text"][: end.start()].split("\n")[-1]
+        rhs = right["text"][start.end() :].split("\n")[0]
+        if _equation_side(lhs) and _equation_side(rhs):
+            left["text"] = left["text"][: end.start()] + " "
+            right["text"] = " " + right["text"][start.end() :]
+    return value
+
+
 def _rich(value):
+    value = normalize_subscript_markers(value)
     if isinstance(value, str):
         return legacy_runs(value)
     if not isinstance(value, list):
         return value
+    value = _join_semantic_condition_lines(value)
     result, group = [], []
 
     def flush():

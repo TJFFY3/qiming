@@ -8,6 +8,7 @@ import {
   Sparkles,
   ChevronRight,
 } from "lucide-react";
+import brandLogo from "../assets/logo-left.svg";
 export type AgentKind = "guide" | "courseware" | "practice";
 const agents = [
   { id: "guide", name: "导学案", Icon: FileText },
@@ -28,13 +29,8 @@ export function AgentHomeHeader({
 }) {
   return (
     <header className="site-header">
-      <button className="brand" onClick={onNew}>
-        <span className="brand-mark">
-          <Sparkles size={20} />
-        </span>
-        启鸣
-        <span className="brand-divider" />
-        教学工作台
+      <button className="brand" onClick={onNew} aria-label="返回首页">
+        <img className="brand-logo" src={brandLogo} alt="品牌标识" />
       </button>
       <div className="header-actions">
         <span className="connection">

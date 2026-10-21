@@ -4,9 +4,10 @@ import re
 import shutil
 
 from .export import export_deck
+from .model_client import CoursewareModelOutputError
 from .prompting import messages_for, source_context
 from .revision import merge_revision
-from .store import identity, now
+from .store import CoursewareConflict, identity, now
 
 
 class CoursewarePipeline:
@@ -77,10 +78,15 @@ class CoursewarePipeline:
                 self.settings.data_dir / "courseware" / session["id"] / "versions" / vid
             )
             directory.mkdir(parents=True, exist_ok=False)
-            result = self.model.generate_json(messages)
-            self.store.stage(jid, "装配课件、最终方程式校验与版式检查")
+            assembling = False
             for attempt in range(3):
+                received_result = False
                 try:
+                    result = self.model.generate_json(messages)
+                    received_result = True
+                    if not assembling:
+                        self.store.stage(jid, "装配课件、最终方程式校验与版式检查")
+                        assembling = True
                     candidate = (
                         merge_revision(
                             result,
@@ -91,9 +97,51 @@ class CoursewarePipeline:
                         if previous
                         else result
                     )
-                    content, validation = export_deck(candidate, directory, True)
+                    content, validation = export_deck(
+                        candidate, directory, True,
+                        paginate=not (previous and not request.get("allow_full_revision", False)),
+                    )
                     break
+                except CoursewareModelOutputError as exc:
+                    diagnostics = (
+                        self.settings.data_dir
+                        / "courseware"
+                        / session["id"]
+                        / "diagnostics"
+                        / jid
+                    )
+                    diagnostics.mkdir(parents=True, exist_ok=True)
+                    (diagnostics / f"attempt-{attempt + 1}.json").write_text(
+                        json.dumps(
+                            {
+                                "attempt": attempt + 1,
+                                "error": self.settings.redact(str(exc)),
+                                "response_text": self.settings.redact(
+                                    exc.response_text
+                                ),
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    if attempt == 2:
+                        raise ValueError(
+                            "课件模型连续返回无效或不完整 JSON，已修复两轮：" + str(exc)
+                        ) from None
+                    if exc.response_text:
+                        messages.append(
+                            {"role": "assistant", "content": exc.response_text[:80000]}
+                        )
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": "上次响应不是完整有效的 JSON。请重新返回符合原Schema的完整JSON对象，不加说明、Markdown或省略号，正确转义引号和换行。保留原要求的总页数，每页内容与教师备注简洁，不重复题干。解析错误："
+                            + str(exc),
+                        }
+                    )
                 except ValueError as exc:
+                    if not received_result or isinstance(exc, CoursewareConflict):
+                        raise
                     if attempt == 2:
                         raise ValueError(
                             "课件内容校验失败，已修复两轮：" + str(exc)
@@ -111,7 +159,6 @@ class CoursewarePipeline:
                             },
                         ]
                     )
-                    result = self.model.generate_json(messages)
             gaps = list(content.get("source_gaps", []))
             if any(s["excerpted"] for s in source_context(sources)):
                 gaps.append(

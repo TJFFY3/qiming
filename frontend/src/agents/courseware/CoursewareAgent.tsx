@@ -10,7 +10,7 @@ import {
   type Session,
   type SessionSummary,
 } from "./types";
-import { applyOptimization } from "./prompt";
+import { applyOptimization, formatLessonPrompt } from "./prompt";
 import Composer from "./Composer";
 import OptimizeDialog from "./OptimizeDialog";
 import Preview from "./Preview";
@@ -220,13 +220,19 @@ export default function CoursewareAgent({
       setError("请切换到最新课件版本后修改。");
       return;
     }
-    const text =
+    const text = formatLessonPrompt(
       suggestion ||
-      prompt.trim() ||
-      (retry
-        ? session?.messages.filter((m) => m.role === "user").at(-1)?.content
-        : "") ||
-      "请根据本课内容生成互动课件。";
+        prompt.trim() ||
+        (retry
+          ? session?.messages.filter((m) => m.role === "user").at(-1)?.content
+          : "") ||
+        "请根据本课内容生成一份互动课件。",
+      settings,
+    );
+    if (text.length > 8000) {
+      setError("提示词超过8000字，请精简要求");
+      return;
+    }
     returnHomeRef.current = false;
     locked.current = true;
     setSending(true);
@@ -487,9 +493,7 @@ export default function CoursewareAgent({
               onSuggestion={(text) => void submit(false, text)}
             />
           )}
-          <ConversationComposer disclaimer="内容由 AI 辅助生成，请结合教材与学情复核。最终排版以 PPTX 为准。">
-            {composer}
-          </ConversationComposer>
+          <ConversationComposer>{composer}</ConversationComposer>
         </main>
       )}
       {notice && (
@@ -509,7 +513,10 @@ export default function CoursewareAgent({
       {(modal === "resources" || modal === "sources") && (
         <Resources
           key={modal}
-          initialTab={modal === "sources" ? "sources" : "uploads"}
+          snapshot={modal === "sources"}
+          sourceIssues={
+            modal === "sources" ? version?.report.source_issues || [] : []
+          }
           resources={session?.resources || []}
           sources={version?.sources || session?.sources || []}
           onUpload={upload}

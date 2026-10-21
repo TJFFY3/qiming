@@ -461,7 +461,13 @@ def test_invalid_json_retries_without_retrying_transport_failures(tmp_path):
         def generate_json(self, messages):
             self.calls += 1
             if self.calls == 1:
-                raise ModelOutputError("模型返回无效 JSON")
+                raise ModelOutputError(
+                    "第2行第9列缺少对象结束符",
+                    response_text='{"title":"练习", "choice":[',
+                )
+            assert messages[-2]["role"] == "assistant"
+            assert messages[-2]["content"] == '{"title":"练习", "choice":['
+            assert "第2行第9列" in messages[-1]["content"]
             return paper()
 
     model = Model()
@@ -476,6 +482,48 @@ def test_invalid_json_retries_without_retrying_transport_failures(tmp_path):
     )
     pipeline.run(j["id"])
     assert store.get_job(j["id"])["status"] == "completed" and model.calls == 2
+
+
+def test_json_repair_uses_actual_error_and_keeps_redacted_diagnostics(tmp_path):
+    from backend.app.timed_practice.model_client import ModelOutputError
+    from backend.app.timed_practice.pipeline import PracticePipeline
+    from backend.app.timed_practice.store import PracticeStore
+    from backend.app.config import Settings
+
+    store = PracticeStore(tmp_path / "practice.sqlite")
+    session = store.create_session(settings())
+    replies = []
+
+    class Model:
+        def generate_json(self, messages):
+            replies.append(copy.deepcopy(messages))
+            raise ModelOutputError(
+                "第2行第9列：缺少逗号", response_text='{"title":"SECRET" "choice":[]}'
+            )
+
+    pipeline = PracticePipeline(
+        Settings(data_dir=tmp_path, model_key="SECRET"),
+        store,
+        SimpleNamespace(search=lambda q: [source()]),
+        Model(),
+    )
+    job = store.create_job(session["id"], dict(kind="generation", prompt="生成"))
+    pipeline.run(job["id"])
+    failed = store.get_job(job["id"])
+    assert failed["status"] == "failed" and len(replies) == 3
+    assert "第2行第9列" in failed["error"]
+    assert "第2行第9列" in replies[1][-1]["content"]
+    assert replies[1][-2]["role"] == "assistant"
+    diagnostics = sorted(
+        (tmp_path / session["id"] / "diagnostics" / job["id"]).glob("attempt-*.json")
+    )
+    assert len(diagnostics) == 3
+    assert all("SECRET" not in path.read_text() for path in diagnostics)
+    assert (
+        json.loads(diagnostics[0].read_text())["response_text"]
+        == '{"title":"[已隐藏]" "choice":[]}'
+    )
+    assert not store.get_session(session["id"])["versions"]
 
 
 def test_model_network_failure_is_not_automatically_retried(tmp_path):

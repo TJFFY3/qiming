@@ -12,6 +12,10 @@ import httpx
 class ModelOutputError(ValueError):
     """A completed model response could not be parsed; eligible for bounded repair."""
 
+    def __init__(self, message, response_text=""):
+        super().__init__(message)
+        self.response_text = response_text
+
 
 @contextmanager
 def response_deadline(response, started, seconds):
@@ -154,7 +158,8 @@ class PracticeModelClient:
                             ) from None
                         if choice.get("finish_reason") == "length":
                             raise ModelOutputError(
-                                "模型输出被截断，请提高最大输出长度或减少题量"
+                                "模型输出被截断，请提高最大输出长度或减少题量",
+                                response_text=text if isinstance(text, str) else "",
                             )
                         if not isinstance(text, str):
                             raise ModelOutputError("限时练习模型正文必须为文字")
@@ -181,7 +186,8 @@ class PracticeModelClient:
                                 item = json.loads(raw)
                             except ValueError:
                                 raise ModelOutputError(
-                                    "模型流式响应包含无效JSON事件"
+                                    "模型流式响应包含无效JSON事件",
+                                    response_text="".join(parts),
                                 ) from None
                             if event_name == "error":
                                 raise ValueError(
@@ -209,13 +215,15 @@ class PracticeModelClient:
                                     received += len(piece)
                                     if received > 256000:
                                         raise ModelOutputError(
-                                            "模型输出过长，请缩短试题解析"
+                                            "模型输出过长，请缩短试题解析",
+                                            response_text="".join(parts),
                                         )
                                 if choice.get("finish_reason"):
                                     finish = choice["finish_reason"]
                                     if finish == "length":
                                         raise ModelOutputError(
-                                            "模型输出被截断，请提高限时练习应用的最大输出长度或减少题量"
+                                            "模型输出被截断，请提高限时练习应用的最大输出长度或减少题量",
+                                            response_text="".join(parts),
                                         )
                                     if finish == "stop":
                                         completed = True
@@ -235,7 +243,8 @@ class PracticeModelClient:
                         consume()
                         if not completed:
                             raise ModelOutputError(
-                                "模型流式连接中断，未收到完整结束标记，请重试"
+                                "模型流式连接中断，未收到完整结束标记，请重试",
+                                response_text="".join(parts),
                             )
                         text = "".join(parts)
                         progress(True)
@@ -270,5 +279,12 @@ class PracticeModelClient:
             if not isinstance(result, dict):
                 raise ValueError("必须为对象")
             return result
+        except json.JSONDecodeError as exc:
+            raise ModelOutputError(
+                f"限时练习模型返回无效JSON（第{exc.lineno}行第{exc.colno}列，收到{len(text)}字）：{exc.msg}",
+                response_text=text,
+            ) from None
         except (ValueError, TypeError):
-            raise ModelOutputError("限时练习模型返回无效JSON或内容不完整") from None
+            raise ModelOutputError(
+                "限时练习模型返回无效JSON或内容不完整", response_text=text
+            ) from None

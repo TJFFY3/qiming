@@ -20,7 +20,10 @@ MOLECULE = re.compile(
 
 
 def _sides(text, start, end):
-    left = re.search(r"([A-Z][A-Za-z0-9()]*)(?:[↑↓])?\s*$", re.sub(r"[（(](?:浓|稀)[)）]\s*$", "", text[:start]))
+    left = re.search(
+        r"([A-Z][A-Za-z0-9()]*)(?:[↑↓])?\s*$",
+        re.sub(r"[（(](?:浓|稀)[)）]\s*$", "", text[:start]),
+    )
     right = re.match(r"\s*\d*([A-Z][A-Za-z0-9]*(?:\([A-Za-z0-9]+\)\d*)*)", text[end:])
     return left and right and FORMULA.fullmatch(left[1]) and FORMULA.fullmatch(right[1])
 
@@ -36,6 +39,18 @@ def format_runs(runs):
         styles.extend(
             [{k: v for k, v in run.items() if k != "text"}] * len(run["text"])
         )
+    duplicates = set()
+    for start, (end, run) in explicit.items():
+        if not run.get("condition"):
+            continue
+        # The condition node already supplies its own operator. Remove only
+        # redundant adjacent equals, even when split across styled runs.
+        left = re.search(r"[ \t]*[=═]+(?:[ \t]*[=═]+)*[ \t]*$", text[:start])
+        right = re.match(r"[ \t]*[=═]+(?:[ \t]*[=═]+)*[ \t]*", text[end:])
+        if left:
+            duplicates.update(range(left.start(), start))
+        if right:
+            duplicates.update(range(end, end + right.end()))
     conditions = {}
     protected = {
         i
@@ -46,7 +61,9 @@ def format_runs(runs):
         if any(i in protected for i in range(match.start(), match.end())):
             continue
         if _sides(text, match.start(), match.end()):
-            label = (match["catalyst"] or match["bare"] or match["label"]).replace("Δ", "△")
+            label = (match["catalyst"] or match["bare"] or match["label"]).replace(
+                "Δ", "△"
+            )
             label = re.sub(r"[,，/]", "、", label)
             conditions[match.start()] = (match.end(), label)
             protected.update(range(match.start(), match.end()))
@@ -83,6 +100,9 @@ def format_runs(runs):
 
     i = 0
     while i < len(text):
+        if i in duplicates:
+            i += 1
+            continue
         if i in explicit:
             end, run = explicit[i]
             result.append(copy.deepcopy(run))

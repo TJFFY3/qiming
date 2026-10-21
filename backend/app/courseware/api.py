@@ -9,6 +9,8 @@ from ..library import KnowledgeLibrary
 from ..publication import clean_office_download, clean_public
 from ..resources import MAX_BYTES, extract_resource
 from .models import CoursewareSettings, Generation, Revision
+from .ppt_equations import coefficient_download
+from .formatted_download import display_content, formatted_artifact
 
 
 def public_resource(resource):
@@ -31,6 +33,9 @@ def make_router(settings, store, pipeline):
         value = store.get_session(sid)
         value["resources"] = [public_resource(r) for r in value["resources"]]
         value["jobs"] = [public_job(j) for j in store.jobs_for(sid)]
+        value["versions"] = [
+            {**v, "content": display_content(v["content"])} for v in value["versions"]
+        ]
         return clean_public(value)
 
     @router.get("/health")
@@ -128,13 +133,13 @@ def make_router(settings, store, pipeline):
                 path.unlink(missing_ok=True)
         return session(sid)
 
-    def version(sid, vid):
+    def version(sid, vid, formatted=True):
         value = next(
             (v for v in store.get_session(sid)["versions"] if v["id"] == vid), None
         )
         if value is None:
             raise KeyError("课件版本不存在")
-        return clean_public(value)
+        return clean_public({**value, "content": display_content(value["content"])}) if formatted else clean_public(value)
 
     @router.get("/sessions/{sid}/versions/{vid}")
     def get_version(sid: str, vid: str):
@@ -142,7 +147,7 @@ def make_router(settings, store, pipeline):
 
     @router.get("/sessions/{sid}/versions/{vid}/files/{kind}")
     def download(sid: str, vid: str, kind: str):
-        v = version(sid, vid)
+        v = version(sid, vid, formatted=False)
         names = {
             "pptx": "courseware.pptx",
             "content": "content.json",
@@ -156,13 +161,13 @@ def make_router(settings, store, pipeline):
             raise KeyError("课件文件不存在")
         if kind != "pptx":
             return JSONResponse(
-                clean_public(json.loads(path.read_text())),
+                clean_public(display_content(v["content"]) if kind == "content" else json.loads(path.read_text())),
                 headers={
                     "Content-Disposition": f'attachment; filename="{v["number"]}-{names[kind]}"'
                 },
             )
         return FileResponse(
-            clean_office_download(path),
+            clean_office_download(coefficient_download(formatted_artifact(v, path))),
             filename=f"{v['number']}-{names[kind]}",
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation"
             if kind == "pptx"

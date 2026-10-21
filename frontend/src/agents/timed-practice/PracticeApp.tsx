@@ -11,7 +11,7 @@ import {
   type Settings,
   type Summary,
 } from "./types";
-import { applyOptimization } from "./prompt";
+import { applyOptimization, formatLessonPrompt } from "./prompt";
 import OptimizeDialog from "./OptimizeDialog";
 import Resources from "./Resources";
 import Preview from "./Preview";
@@ -168,14 +168,17 @@ export default function PracticeApp({
       return;
     }
     const retry = !!options?.retry;
-    const instruction = retry
-      ? session?.messages.filter((m) => m.role === "user").at(-1)?.content ||
-        prompt
-      : options?.prompt ||
-        prompt.trim() ||
-        (version
-          ? "请根据本课要求调整当前限时练习，保留未涉及内容。"
-          : "请根据本课内容生成一份限时练习，并提供独立答案与解析。");
+    const instruction = formatLessonPrompt(
+      retry
+        ? session?.messages.filter((m) => m.role === "user").at(-1)?.content ||
+            prompt
+        : options?.prompt ||
+            prompt.trim() ||
+            (version
+              ? "请根据本课要求调整当前限时练习，保留未涉及内容。"
+              : "请根据本课内容生成一份限时练习。"),
+      settings,
+    );
     if (instruction.length > 8000) {
       setError("提示词超过8000字，请精简要求");
       return;
@@ -470,6 +473,9 @@ export default function PracticeApp({
               : session?.sources || []
           }
           snapshot={modal === "sources"}
+          sourceIssues={
+            modal === "sources" ? version?.report.source_issues || [] : []
+          }
           busy={busy}
           onClose={() => setModal(null)}
           onUpload={upload}

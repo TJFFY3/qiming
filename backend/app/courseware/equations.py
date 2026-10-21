@@ -5,6 +5,8 @@ import re
 from collections import Counter
 
 from ..chemistry_format import FORMULA, _group, _rich
+from ..serialized_rich import decode_rich
+from .models import Run
 
 OPERATOR = re.compile(r"=+|→|⟶|⇌|↔")
 
@@ -35,7 +37,8 @@ def atoms(side):
     return total or None
 
 
-def normalize_paragraph(value, location):
+def normalize_paragraph(value, location, check_balance=True):
+    value = decode_rich(value, Run)
     boundaries = []
     if isinstance(value, list) and not any(r.get("condition") for r in value):
         position = 0
@@ -53,7 +56,7 @@ def normalize_paragraph(value, location):
     parts = OPERATOR.split(text)
     counts = [atoms(p) for p in parts]
     equation = len(parts) == 2 and all(counts)
-    if equation and counts[0] != counts[1]:
+    if check_balance and equation and counts[0] != counts[1]:
         raise ValueError(
             f"{location}原子数不守恒，请核对反应物、生成物和化学计量数，返回修正后的完整方程式"
         )
@@ -86,11 +89,11 @@ def normalize_paragraph(value, location):
     return value
 
 
-def normalize_deck(content):
+def normalize_deck(content, check_balance=True):
     content = copy.deepcopy(content)
     for i, slide in enumerate(content["slides"]):
         slide["paragraphs"] = [
-            normalize_paragraph(p, f"第{i + 1}页第{j + 1}段：")
+            normalize_paragraph(p, f"第{i + 1}页第{j + 1}段：", check_balance=check_balance)
             for j, p in enumerate(slide["paragraphs"])
         ]
     return content

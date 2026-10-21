@@ -6,6 +6,7 @@ import sqlite3
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from .prompting import compose_prompt
 
 
 def now():
@@ -149,6 +150,12 @@ class CoursewareStore:
                 or session["versions"][-1]["id"] != payload["base_version_id"]
             ):
                 raise CoursewareConflict("只能基于最新课件版本修改，请切换到最新版本")
+            payload = {
+                **payload,
+                "prompt": compose_prompt(
+                    payload.get("prompt", ""), session["settings"]
+                ),
+            }
             job = dict(
                 id=identity(),
                 session_id=sid,

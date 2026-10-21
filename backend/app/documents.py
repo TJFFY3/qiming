@@ -30,7 +30,10 @@ class DocumentEngine:
         clean_office_in_place(Path(destination) / "outline.docx")
         return result
 
-    def revise(self, current, patch, destination, version):
+    def revise(
+        self, current, patch, destination, version, sources=None,
+        source_gaps=None, source_conflicts=None,
+    ):
         current = Path(current).resolve()
         destination = Path(destination).resolve()
         if destination == current or current in destination.parents:
@@ -42,6 +45,20 @@ class DocumentEngine:
             snapshot.mkdir()
             for name in ("generation_report.json", "content.json", "source_input.json"):
                 shutil.copy2(current / name, snapshot / name)
+            if any(value is not None for value in (sources, source_gaps, source_conflicts)):
+                source_path = snapshot / "source_input.json"
+                source_input = json.loads(source_path.read_text(encoding="utf-8"))
+                if sources is not None:
+                    source_input["sources"] = sources
+                for key, values in (("source_gaps", source_gaps), ("source_conflicts", source_conflicts)):
+                    if values is not None:
+                        source_input[key] = list(dict.fromkeys(
+                            source_input.get(key, []) + values
+                        ))
+                source_path.write_text(
+                    json.dumps(source_input, ensure_ascii=False, allow_nan=False),
+                    encoding="utf-8",
+                )
             report_path = snapshot / "generation_report.json"
             report = json.loads(report_path.read_text(encoding="utf-8"))
             report["draft"] = True

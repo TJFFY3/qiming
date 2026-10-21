@@ -38,6 +38,8 @@ def native_equation_bars(path):
                 if not text.text or set(text.text) != {"="} or len(text.text) < 3:
                     continue
                 label = next(labels)
+                for properties in label.findall(".//a:rPr", NS) + label.findall(".//a:endParaRPr", NS):
+                    properties.set("sz", "1560")
                 off = label.find("p:spPr/a:xfrm/a:off", NS)
                 ext = label.find("p:spPr/a:xfrm/a:ext", NS)
                 # Move the label closer to its operator while preserving the
@@ -73,3 +75,58 @@ def native_equation_bars(path):
     with ZipFile(path, "w", ZIP_DEFLATED) as archive:
         for name, data in parts.items():
             archive.writestr(name, data)
+
+
+def coefficient_download(path):
+    """Repair old native PPT runs in a cached copy, preserving saved versions."""
+    import hashlib
+    import os
+    import re
+    import tempfile
+    from pathlib import Path
+
+    path = Path(path)
+    stamp = path.stat()
+    key = hashlib.sha256(
+        f"{path.name}:{stamp.st_mtime_ns}:{stamp.st_size}:coefficients-v1".encode()
+    ).hexdigest()
+    directory = path.parent / ".public"
+    directory.mkdir(exist_ok=True)
+    target = directory / (key + ".pptx")
+    if target.is_file():
+        return target
+    with tempfile.NamedTemporaryFile(dir=directory, suffix=".pptx", delete=False) as f:
+        temporary = Path(f.name)
+    try:
+        with ZipFile(path) as source, ZipFile(temporary, "w", ZIP_DEFLATED) as output:
+            for info in source.infolist():
+                data = source.read(info.filename)
+                changed = False
+                if re.fullmatch(r"ppt/slides/slide\d+\.xml", info.filename):
+                    root = E.fromstring(data)
+                    for paragraph in root.findall(".//a:p", NS):
+                        runs = paragraph.findall("a:r", NS)
+                        texts = [r.findtext("a:t", default="", namespaces=NS) for r in runs]
+                        if not re.search(r"[=→⟶⇌↔]", "".join(texts)):
+                            continue
+                        for i, run in enumerate(runs):
+                            props = run.find("a:rPr", NS)
+                            if props is None or props.get("baseline") != "-25000":
+                                continue
+                            left, right = "".join(texts[:i]).rstrip(), "".join(texts[i + 1:]).lstrip()
+                            if (re.fullmatch(r"[0-9]+", texts[i])
+                                and not re.search(r"[A-Za-z0-9)\]]$", left)
+                                and re.match(r"[A-Z][a-z]?", right)):
+                                props.attrib.pop("baseline")
+                                # Normal neighboring formula text defines body size.
+                                following = runs[i + 1].find("a:rPr", NS)
+                                if following is not None and following.get("sz"):
+                                    props.set("sz", following.get("sz"))
+                                changed = True
+                    if changed:
+                        data = E.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+                output.writestr(info, data)
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return target

@@ -62,12 +62,38 @@ function RunText({ run }: { run: Run }) {
     </span>
   );
 }
+function richLines(runs: Run[]): Run[][] {
+  const lines: Run[][] = [[]];
+  for (const run of runs) {
+    const parts = run.text.split("\n");
+    for (let i = 0; i < parts.length; i++) {
+      if (i) lines.push([]);
+      lines[lines.length - 1].push({ ...run, text: parts[i] });
+    }
+  }
+  return lines;
+}
 export function Rich({ value }: { value: RichText }) {
   value = chemistryRuns(value);
   return (
     <>
       {Array.isArray(value)
-        ? value.map((r, i) => <RunText key={i} run={r} />)
+        ? richLines(value).map((line, i) => (
+            <span key={i}>
+              {i > 0 && <br />}
+              <span
+                className={
+                  line.some((r) => r.condition)
+                    ? "chemical-equation"
+                    : undefined
+                }
+              >
+                {line.map((r, j) => (
+                  <RunText key={j} run={r} />
+                ))}
+              </span>
+            </span>
+          ))
         : value
           ? marked(value)
           : "\u00a0"}

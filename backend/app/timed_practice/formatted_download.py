@@ -11,7 +11,7 @@ from .documents import render
 from .equations import format_content
 
 _LOCK = threading.Lock()
-FORMAT_VERSION = "practice-chemistry-v2"
+FORMAT_VERSION = "practice-chemistry-v5-subscript-markers"
 
 
 def formatted_artifact(version, kind):

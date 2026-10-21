@@ -133,3 +133,59 @@ test.each([
     expect(container.textContent).not.toContain("→");
   },
 );
+
+test("historical three-line reaction renders as one equation with a stacked condition", () => {
+  const { container } = render(
+    <Rich
+      value={"观察：\nC + 2[CuO]\n高温\n= 2[Cu] + [CO2]↑\n思考：得失氧。"}
+    />,
+  );
+  expect(container.querySelector(".condition small")?.textContent).toBe("高温");
+  expect(container.querySelectorAll("br")).toHaveLength(2);
+  expect(container.textContent).toContain("C + 2CuO");
+  expect(container.textContent).toContain("思考：得失氧。");
+});
+
+test("keeps each reconstructed equation together without joining adjacent equations", () => {
+  const { container } = render(
+    <Rich
+      value={
+        "C + 2[CuO]\n高温\n= 2[Cu] + [CO2]↑\n3[CO] + [Fe2O3]\n高温\n= 2[Fe] + 3[CO2]"
+      }
+    />,
+  );
+  expect(container.querySelectorAll(".chemical-equation")).toHaveLength(2);
+  expect(container.querySelectorAll("br")).toHaveLength(1);
+  for (const equation of container.querySelectorAll(".chemical-equation")) {
+    expect(equation.querySelector("br")).toBeNull();
+    expect(equation.querySelector(".condition")).not.toBeNull();
+  }
+});
+
+test.each(["光照", "催化剂", "高温"])(
+  "rejoins CRLF equations with %s",
+  (condition) => {
+    const { container } = render(
+      <Rich value={`[H2] + [Cl2]\r\n${condition}\r\n= 2[HCl]\r\n思考`} />,
+    );
+    expect(container.querySelector(".condition small")?.textContent).toBe(
+      condition,
+    );
+    expect(container.querySelectorAll("br")).toHaveLength(1);
+    expect(container.textContent).not.toContain(`===${condition}===`);
+  },
+);
+
+test("removes forced breaks surrounding an existing semantic condition", () => {
+  const { container } = render(
+    <Rich
+      value={[
+        { text: "[H2] + [Cl2]\n" },
+        { text: "点燃", condition: true },
+        { text: "\n= 2[HCl]" },
+      ]}
+    />,
+  );
+  expect(container.querySelector(".chemical-equation")).not.toBeNull();
+  expect(container.querySelectorAll("br")).toHaveLength(0);
+});

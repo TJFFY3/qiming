@@ -35,7 +35,15 @@ def instruction_text(prompt):
 
 def compose_prompt(prompt, settings):
     text = ensure_optimization(prompt, settings.get("options"))
-    match = re.search(r"【优化提示】\n[\s\S]*?【优化提示结束】", text)
+    return compose_lesson_context(
+        text, settings, r"【优化提示】\n[\s\S]*?【优化提示结束】"
+    )
+
+
+def compose_lesson_context(prompt, settings, optimization_pattern):
+    match = re.search(optimization_pattern, prompt)
+    instruction = re.sub(optimization_pattern, "", prompt)
+    instruction = re.sub(LESSON_CONTEXT, "", instruction, flags=re.M).strip()
     context = "\n".join(
         [
             "学科：化学",
@@ -46,4 +54,4 @@ def compose_prompt(prompt, settings):
         ]
     )
     tail = context + ("\n" + match.group(0) if match else "")
-    return "\n\n".join(part for part in [instruction_text(text), tail] if part)
+    return "\n\n".join(part for part in [instruction, tail] if part)

@@ -119,3 +119,36 @@ def test_formula_split_across_styled_runs_keeps_subscript_and_style(tmp_path):
         assert xml.xpath(
             '//a:r[a:t="2"]/a:rPr[@baseline="-25000"][@b="1"]', namespaces=NS
         )
+
+
+@pytest.mark.parametrize("equation,subscripts", [
+    ("[2CuO+C=高温=2Cu+CO2↑]", ["2"]),
+    ("[Fe2O3+3CO=高温=2Fe+3CO2]", ["2", "3", "2"]),
+    ("[2CuO]+[C]=高温=[2Cu]+[CO2]↑", ["2"]),
+])
+def test_bracketed_equation_coefficients_keep_normal_baseline(tmp_path, equation, subscripts):
+    export_deck(deck([equation]), tmp_path, True)
+    with ZipFile(tmp_path / "courseware.pptx") as archive:
+        xml = etree.fromstring(archive.read("ppt/slides/slide1.xml"))
+    assert xml.xpath('//a:r[a:rPr/@baseline="-25000"]/a:t/text()', namespaces=NS) == subscripts
+    assert xml.xpath('//a:r[a:rPr/@baseline="0"]/a:t/text()', namespaces=NS) or xml.xpath('//a:r[not(a:rPr/@baseline)]/a:t/text()', namespaces=NS)
+    assert xml.xpath('//a:t[text()="高温"]', namespaces=NS)
+
+
+def test_existing_download_repairs_coefficients_without_overwriting_original(tmp_path):
+    from backend.app.courseware.export import generate_pptx
+    from backend.app.courseware.ppt_equations import coefficient_download
+
+    original = tmp_path / "old.pptx"
+    generate_pptx(deck(["[2CuO+C=高温=2Cu+CO2↑]"])["slides"], original)
+    before = original.read_bytes()
+    fixed = coefficient_download(original)
+    assert original.read_bytes() == before
+    assert coefficient_download(original) == fixed
+    with ZipFile(fixed) as z, ZipFile(original) as old:
+        xml = etree.fromstring(z.read("ppt/slides/slide1.xml"))
+        assert xml.xpath('//a:r[a:rPr/@baseline="-25000"]/a:t/text()', namespaces=NS) == ["2"]
+        coefficients = xml.xpath('//a:r[a:t="2" and not(a:rPr/@baseline)]', namespaces=NS)
+        assert len(coefficients) == 2
+        assert all(int(r.find("a:rPr", NS).get("sz")) >= 2400 for r in coefficients)
+        assert z.read("ppt/slideMasters/slideMaster1.xml") == old.read("ppt/slideMasters/slideMaster1.xml")
