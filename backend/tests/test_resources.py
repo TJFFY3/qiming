@@ -1,5 +1,5 @@
 import pytest
-from backend.app.resources import extract_resource
+from backend.app.shared.tools.resources import extract_resource
 
 
 def test_plain_text(tmp_path):

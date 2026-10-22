@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import Composer from "./Composer";
-import { defaultSettings } from "../api";
+import { defaultSettings } from "../agents/study-guide/services/api";
 afterEach(cleanup);
 test("chapter uses a native select and period offers exactly the first two lessons", () => {
   const change = vi.fn();

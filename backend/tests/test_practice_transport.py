@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from backend.app.config import Settings
-from backend.app.timed_practice.model_client import (
+from backend.app.timed_practice.llm.client import (
     PracticeModelClient,
     ModelOutputError,
 )
@@ -127,7 +127,7 @@ def test_stream_error_and_length_finish_are_not_silently_accepted():
 
 
 def test_context_prefers_current_lesson_and_does_not_send_templates_or_transport_metadata():
-    from backend.app.timed_practice.context import prepare_source_context
+    from backend.app.timed_practice.knowledge.context import prepare_source_context
 
     sources = [
         dict(
@@ -167,9 +167,9 @@ def test_context_prefers_current_lesson_and_does_not_send_templates_or_transport
 
 
 def test_pipeline_records_stream_progress_context_size_and_failed_stage(tmp_path):
-    from backend.app.timed_practice.pipeline import PracticePipeline
-    from backend.app.timed_practice.store import PracticeStore
-    from backend.app.timed_practice.models import LessonSettings
+    from backend.app.timed_practice.application.pipeline import PracticePipeline
+    from backend.app.timed_practice.storage.store import PracticeStore
+    from backend.app.timed_practice.domain.models import LessonSettings
 
     store = PracticeStore(tmp_path / "practice.sqlite")
     lesson = store.create_session(LessonSettings().model_dump())

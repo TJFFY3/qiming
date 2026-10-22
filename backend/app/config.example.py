@@ -24,7 +24,9 @@ class Settings:
     similarity: float = 0.2
     search_limit: int = 6000
     using_rerank: bool = False
-    timeout: float = 120
+    timeout: float = 120  # 检索等普通请求超时
+    model_read_timeout: float = 300  # 导学案模型连续无数据等待上限
+    model_total_timeout: float = 600  # 导学案单次模型调用总时限
     data_dir: Path = ROOT / "data"
     timed_practice: dict = field(default_factory=dict)  # 限时练习专用连接覆盖；留空沿用公共连接
 

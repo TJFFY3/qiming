@@ -1,0 +1,270 @@
+import { useState, useCallback } from "react";
+import { RotateCcw, Check } from "lucide-react";
+import { defaultOptions, type Options } from "../services/api";
+import Modal from "../../../components/Modal";
+const DEFAULT = "按本课安排（默认）";
+function Choice({
+  label,
+  value,
+  items,
+  onChange,
+  hint,
+}: {
+  label: string;
+  value: string;
+  items: string[];
+  onChange: (v: string) => void;
+  hint?: string;
+}) {
+  const custom = !items.includes(value);
+  return (
+    <fieldset className="choice-group">
+      <legend>{label}</legend>
+      <div className="choices">
+        {items.map((item) => (
+          <button
+            type="button"
+            key={item}
+            aria-pressed={!custom && value === item}
+            className={!custom && value === item ? "choice selected" : "choice"}
+            onClick={() => {
+              onChange(item);
+            }}
+          >
+            {item}
+          </button>
+        ))}
+        <button
+          type="button"
+          className={"choice " + (custom ? "selected" : "")}
+          aria-pressed={custom}
+          onClick={() => {
+            onChange("");
+          }}
+        >
+          自己填写
+        </button>
+      </div>
+      {custom && (
+        <input
+          aria-label={label + "自定义"}
+          maxLength={200}
+          className="custom-input"
+          autoFocus
+          value={value}
+          placeholder={"填写" + label}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}{" "}
+      {hint && <p className="field-hint">{hint}</p>}
+    </fieldset>
+  );
+}
+export default function OptimizeDialog({
+  chapter,
+  value,
+  onApply,
+  onClose,
+}: {
+  chapter: string;
+  value: Options;
+  onApply: (v: Options) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<Options>({
+    ...structuredClone(value),
+    focus: value.focus.filter((x) =>
+      [
+        "按本课安排（默认）",
+        "概念理解",
+        "物质性质",
+        "化学方程式",
+        "实验现象和操作",
+        "计算",
+      ].includes(x),
+    ),
+  });
+  const [focusCustom, setFocusCustom] = useState(
+    value.focus.find(
+      (x) =>
+        ![
+          "按本课安排（默认）",
+          "概念理解",
+          "物质性质",
+          "化学方程式",
+          "实验现象和操作",
+          "计算",
+        ].includes(x),
+    ) || "",
+  );
+  const [customFocus, setCustomFocus] = useState(!!focusCustom);
+  const close = useCallback(onClose, [onClose]);
+  const set = (key: keyof Options, v: string) =>
+    setDraft((old) => ({ ...old, [key]: v }));
+  const focuses = [
+    DEFAULT,
+    "概念理解",
+    "物质性质",
+    "化学方程式",
+    "实验现象和操作",
+    "计算",
+  ];
+  const toggle = (item: string) =>
+    setDraft((old) => ({
+      ...old,
+      focus:
+        item === DEFAULT
+          ? [DEFAULT]
+          : old.focus.includes(item)
+            ? old.focus.filter((x) => x !== item)
+            : [...old.focus.filter((x) => x !== DEFAULT), item],
+    }));
+  return (
+    <Modal title="优化提示" onClose={close} className="optimize-modal">
+      <div className="modal-scroll">
+        <div className="lesson-caption">化学 · 导学案</div>
+        <h3 className="lesson-heading">{chapter}</h3>
+        <div className="option-grid">
+          <Choice
+            label="学习范围"
+            value={draft.scope}
+            items={["当前课时（默认）"]}
+            onChange={(v) => set("scope", v)}
+          />
+          <Choice
+            label="自学用时"
+            value={draft.duration}
+            items={[DEFAULT, "10 分钟", "15 分钟", "20 分钟"]}
+            onChange={(v) => set("duration", v)}
+            hint="化学按课时内容安排，不预设用时或固定题量。"
+          />
+          <Choice
+            label="任务数量"
+            value={draft.tasks}
+            items={[DEFAULT, "自动安排"]}
+            onChange={(v) => set("tasks", v)}
+          />
+          <Choice
+            label="内容难度"
+            value={draft.difficulty}
+            items={[DEFAULT, "基础为主", "基础与应用搭配", "综合提高"]}
+            onChange={(v) => set("difficulty", v)}
+          />
+          <Choice
+            label="提示写多细"
+            value={draft.hints}
+            items={[DEFAULT, "简要提示", "详细提示"]}
+            onChange={(v) => set("hints", v)}
+          />
+        </div>
+        <fieldset className="focus-group">
+          <legend>
+            本课重点 <span>（可多选）</span>
+          </legend>
+          <div className="choices">
+            {focuses.map((item) => (
+              <button
+                key={item}
+                className={
+                  "choice check-choice " +
+                  (draft.focus.includes(item) ? "selected" : "")
+                }
+                onClick={() => toggle(item)}
+                aria-pressed={draft.focus.includes(item)}
+              >
+                <span
+                  className={
+                    "checkbox " + (draft.focus.includes(item) ? "checked" : "")
+                  }
+                >
+                  {draft.focus.includes(item) && <Check size={15} />}
+                </span>
+                {item}
+              </button>
+            ))}
+            <button
+              className={
+                "choice check-choice " + (customFocus ? "selected" : "")
+              }
+              onClick={() => setCustomFocus(!customFocus)}
+            >
+              <span className={"checkbox " + (customFocus ? "checked" : "")}>
+                {customFocus && <Check size={15} />}
+              </span>
+              自己填写
+            </button>
+          </div>
+          {customFocus && (
+            <input
+              className="custom-input"
+              maxLength={200}
+              placeholder="填写希望加强的内容"
+              value={focusCustom}
+              onChange={(e) => setFocusCustom(e.target.value)}
+            />
+          )}
+          <p className="field-hint">
+            选择重点只表示加强它，不会自动删除其他必学内容。
+          </p>
+        </fieldset>
+        <label className="extra-field">
+          补充要求 <span>（选填）</span>
+          <textarea
+            value={draft.extra}
+            maxLength={3000}
+            onChange={(e) => set("extra", e.target.value)}
+            placeholder="例如：学生基础较弱，请增加分步提示；只使用教材原题，不加入未学内容。"
+          />
+        </label>
+      </div>
+      <footer className="modal-footer">
+        <button
+          className="text-button muted"
+          onClick={() => {
+            setDraft(defaultOptions());
+            setCustomFocus(false);
+            setFocusCustom("");
+          }}
+        >
+          <RotateCcw size={18} />
+          清除全部设置
+        </button>
+        <div>
+          <button className="button secondary" onClick={onClose}>
+            取消
+          </button>
+          <button
+            className="button dark"
+            disabled={
+              [
+                draft.scope,
+                draft.duration,
+                draft.tasks,
+                draft.difficulty,
+                draft.hints,
+              ].some((x) => !x.trim()) ||
+              (customFocus && !focusCustom.trim())
+            }
+            onClick={() =>
+              onApply({
+                ...draft,
+                focus: Array.from(
+                  new Set(
+                    [
+                      ...draft.focus,
+                      ...(customFocus && focusCustom.trim()
+                        ? [focusCustom.trim()]
+                        : []),
+                    ].filter(Boolean),
+                  ),
+                ),
+              })
+            }
+          >
+            填入
+          </button>
+        </div>
+      </footer>
+    </Modal>
+  );
+}

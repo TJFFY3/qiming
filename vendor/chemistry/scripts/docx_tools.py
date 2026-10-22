@@ -3,6 +3,7 @@ from pathlib import Path
 import math
 import re
 from docx import Document
+from docx.image.image import Image
 from docx.shared import Pt, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_CELL_VERTICAL_ALIGNMENT
@@ -114,7 +115,23 @@ def _outline_table(d,block):
                 shade=OxmlElement('w:shd');shade.set(qn('w:fill'),'E7EEF5');cell._tc.get_or_add_tcPr().append(shade)
     return table
 
-def generate_outline(data,output_path):
+def _outline_image(d,block,image_assets):
+    image_id=block['image_id']
+    asset=(image_assets or {}).get(image_id)
+    if asset is None or not Path(asset).is_file():
+        raise ValueError('缺少图片资源：'+image_id)
+    image=Image.from_file(str(asset))
+    section=d.sections[-1]
+    available=section.page_width-section.left_margin-section.right_margin
+    scale=min(1,available/image.width,Cm(9)/image.height)
+    paragraph=d.add_paragraph()
+    paragraph.alignment=WD_ALIGN_PARAGRAPH.CENTER
+    paragraph.paragraph_format.keep_with_next=True
+    paragraph.add_run().add_picture(str(asset),width=int(image.width*scale),height=int(image.height*scale))
+    _p(d,block['caption'],align=WD_ALIGN_PARAGRAPH.CENTER)
+
+
+def generate_outline(data,output_path,image_assets=None):
     # Validate every block before opening a template or touching the destination.
     from outline_contract import normalize_outline
     data=normalize_outline(data)
@@ -132,6 +149,7 @@ def generate_outline(data,output_path):
         _heading(d,section['title'])
         for block in section['blocks']:
             if block['type']=='table':_outline_table(d,block)
+            elif block['type']=='image':_outline_image(d,block,image_assets)
             else:_p(d,block['content'])
     for thought in data.get('thinking',[]):
         p=_p(d,'思考　',True,11,'楷体_GB2312');add_docx_runs(p,thought)

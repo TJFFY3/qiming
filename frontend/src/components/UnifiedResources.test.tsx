@@ -2,8 +2,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import Resources from "./Resources";
-import PracticeResources from "../agents/timed-practice/Resources";
-import CoursewareResources from "../agents/courseware/Resources";
+import PracticeResources from "../agents/timed-practice/components/Resources";
+import CoursewareResources from "../agents/courseware/components/Resources";
 
 afterEach(() => {
   cleanup();

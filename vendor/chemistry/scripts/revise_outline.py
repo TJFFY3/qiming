@@ -17,7 +17,7 @@ def _read_object(path):
     return value
 
 
-def revise_document(current_dir, patch, output_dir, version='v002'):
+def revise_document(current_dir, patch, output_dir, version='v002', image_assets=None):
     """Replace declared blocks, preserving all other content and source evidence.
 
     The patch is a JSON object with ``base_sha256`` and ``changes``. Each
@@ -119,9 +119,17 @@ def revise_document(current_dir, patch, output_dir, version='v002'):
     # keeps both the draft marker and source-checking requirements intact.
     draft = 'draft' in str(report.get('status', '')).lower() or report.get('draft') is True
     previous['draft'] = draft
+    if image_assets is None:
+        original_image_ids={block['image_id'] for block in original_blocks.values() if block['type']=='image'}
+        image_assets={}
+        for image_id in original_image_ids:
+            asset=current/'images'/(image_id+'.bin')
+            # Only canonical IDs inside this version's image directory are eligible.
+            if (current/'images').resolve()==current/'images' and asset.resolve().parent==current/'images' and asset.is_file():
+                image_assets[image_id]=asset
     from render_outline import render_document
     return render_document(data, target, allow_unverified=draft, version=version,
-                           previous=previous)
+                           previous=previous, image_assets=image_assets)
 
 
 def main():

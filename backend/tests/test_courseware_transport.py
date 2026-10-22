@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from backend.app.config import Settings
-from backend.app.courseware.model_client import (
+from backend.app.courseware.llm.client import (
     CoursewareModelClient,
     CoursewareModelOutputError,
 )

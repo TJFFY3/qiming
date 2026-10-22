@@ -3,7 +3,7 @@ from pathlib import Path
 from zipfile import ZipFile
 import pytest
 from lxml import etree
-from backend.app.courseware.export import export_deck
+from backend.app.courseware.tools.export import export_deck
 
 NS = {
     "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
@@ -136,8 +136,8 @@ def test_bracketed_equation_coefficients_keep_normal_baseline(tmp_path, equation
 
 
 def test_existing_download_repairs_coefficients_without_overwriting_original(tmp_path):
-    from backend.app.courseware.export import generate_pptx
-    from backend.app.courseware.ppt_equations import coefficient_download
+    from backend.app.courseware.tools.export import generate_pptx
+    from backend.app.courseware.tools.ppt_equations import coefficient_download
 
     original = tmp_path / "old.pptx"
     generate_pptx(deck(["[2CuO+C=高温=2Cu+CO2↑]"])["slides"], original)

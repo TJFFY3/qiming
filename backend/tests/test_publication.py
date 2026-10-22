@@ -6,7 +6,7 @@ from docx import Document
 def test_historical_office_download_removes_split_marker_without_changing_original(
     tmp_path,
 ):
-    from backend.app.publication import clean_office_download
+    from backend.app.shared.tools.publication import clean_office_download
 
     original = tmp_path / "old.docx"
     doc = Document()
@@ -28,7 +28,7 @@ def test_historical_office_download_removes_split_marker_without_changing_origin
 
 
 def test_public_cleaning_removes_labels_but_preserves_evidence_and_requests():
-    from backend.app.publication import clean_public
+    from backend.app.shared.tools.publication import clean_public
 
     value = {
         "content": {"title": "待核验·氧化还原反应"},
@@ -57,7 +57,7 @@ def test_historical_pptx_download_cleans_cover_and_preserves_slide_order(tmp_pat
     import sys
     from pathlib import Path
 
-    from backend.app.publication import clean_office_download
+    from backend.app.shared.tools.publication import clean_office_download
 
     sys.path.insert(0, str(Path("vendor/chemistry/scripts").resolve()))
     from ppt_tools import generate_pptx
@@ -83,7 +83,7 @@ def test_historical_pptx_download_cleans_cover_and_preserves_slide_order(tmp_pat
 
 
 def test_public_gap_notes_keep_actual_missing_material_while_removing_status():
-    from backend.app.publication import clean_public
+    from backend.app.shared.tools.publication import clean_public
 
     value = {
         "source_gaps": [
@@ -102,7 +102,7 @@ def test_public_gap_notes_keep_actual_missing_material_while_removing_status():
 
 
 def test_repeated_and_unbracketed_trailing_review_markers_are_removed(tmp_path):
-    from backend.app.publication import clean_title, clean_office_download
+    from backend.app.shared.tools.publication import clean_title, clean_office_download
 
     assert clean_title("待核验 · 待核验-氧化还原反应 · 待核验") == "氧化还原反应"
     original = tmp_path / "legacy.docx"

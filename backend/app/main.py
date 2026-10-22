@@ -1,20 +1,22 @@
+"""【应用装配】创建三个 Agent 的独立存储、模型客户端和流程，注册 HTTP 路由。"""
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from .config import settings as default_settings
-from .store import Store, Conflict
-from .retrieval import FastGPTRetriever
-from .model_client import ModelClient
-from .documents import DocumentEngine
-from .pipeline import Pipeline
-from .api import make_router
-from .courseware.config import resolve_settings
-from .courseware.store import CoursewareStore, CoursewareConflict
-from .courseware.pipeline import CoursewarePipeline
-from .courseware.model_client import CoursewareModelClient
-from .courseware.api import make_router as make_courseware_router
+from backend.app.config import settings as default_settings
+from backend.app.study_guide.storage.store import Store, Conflict
+from backend.app.shared.knowledge.retrieval import FastGPTRetriever
+from backend.app.study_guide.llm.client import ModelClient
+from backend.app.study_guide.tools.documents import DocumentEngine
+from backend.app.study_guide.application.pipeline import Pipeline
+from backend.app.study_guide.api.routes import make_router
+from backend.app.courseware.configuration.settings import resolve_settings
+from backend.app.courseware.storage.store import CoursewareStore, CoursewareConflict
+from backend.app.courseware.application.pipeline import CoursewarePipeline
+from backend.app.courseware.llm.client import CoursewareModelClient
+from backend.app.courseware.api.routes import make_router as make_courseware_router
 
 
 def create_app(settings=None, pipeline_factory=None, courseware_factory=None, practice_factory=None):
@@ -28,7 +30,7 @@ def create_app(settings=None, pipeline_factory=None, courseware_factory=None, pr
             store,
             FastGPTRetriever(settings),
             ModelClient(settings),
-            DocumentEngine(),
+            DocumentEngine(settings=settings),
         )
     )
 
@@ -43,8 +45,8 @@ def create_app(settings=None, pipeline_factory=None, courseware_factory=None, pr
         )
     )
 
-    from .timed_practice.api import make_router as make_practice_router
-    from .timed_practice.store import PracticeConflict
+    from backend.app.timed_practice.api.routes import make_router as make_practice_router
+    from backend.app.timed_practice.storage.store import PracticeConflict
     practice_router, practice_store = make_practice_router(settings, practice_factory)
 
     @asynccontextmanager

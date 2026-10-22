@@ -1,5 +1,5 @@
 import pytest
-from backend.app.store import Store, Conflict
+from backend.app.study_guide.storage.store import Store, Conflict
 
 
 def test_session_survives_reopen(tmp_path):

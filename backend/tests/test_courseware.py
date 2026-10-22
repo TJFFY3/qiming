@@ -37,9 +37,9 @@ def deck(title="氧化还原反应"):
 
 
 def app_for(tmp_path, replies=None, hits=True):
-    from backend.app.courseware.model_client import CoursewareModelClient
-    from backend.app.courseware.pipeline import CoursewarePipeline
-    from backend.app.retrieval import FastGPTRetriever
+    from backend.app.courseware.llm.client import CoursewareModelClient
+    from backend.app.courseware.application.pipeline import CoursewarePipeline
+    from backend.app.shared.knowledge.retrieval import FastGPTRetriever
 
     responses = list(replies or [deck()])
     requests = []
@@ -236,7 +236,7 @@ def test_invalid_model_paths_fail_without_pptx(tmp_path):
 def test_atomic_reservation_and_restart_recovery(tmp_path):
     import pytest
 
-    from backend.app.courseware.store import CoursewareConflict, CoursewareStore
+    from backend.app.courseware.storage.store import CoursewareConflict, CoursewareStore
 
     store = CoursewareStore(tmp_path / "courseware" / "agent.sqlite")
     sid = store.create_session({})["id"]
@@ -253,7 +253,7 @@ def test_atomic_reservation_and_restart_recovery(tmp_path):
 def test_library_sync_stores_complete_documents_and_keeps_cache_on_failure(
     tmp_path, monkeypatch
 ):
-    from backend.app.library import KnowledgeLibrary
+    from backend.app.shared.knowledge.library import KnowledgeLibrary
 
     documents = [
         {
@@ -343,7 +343,7 @@ def test_revision_retains_original_evidence_after_upload_is_removed(tmp_path):
 def test_draft_cover_does_not_silently_truncate_topic(tmp_path):
     import pytest
 
-    from backend.app.courseware.export import export_deck
+    from backend.app.courseware.tools.export import export_deck
 
     raw = deck()
     raw["slides"][0]["title"] = "探究氯气与氢氧化钠反应中的电子转移规律"
@@ -467,8 +467,8 @@ def test_out_of_range_page_patch_does_not_create_version(tmp_path):
 def test_full_revision_requires_explicit_mode_even_if_prompt_mentions_adding_pages():
     import pytest
 
-    from backend.app.courseware.models import Revision
-    from backend.app.courseware.revision import merge_revision
+    from backend.app.courseware.domain.models import Revision
+    from backend.app.courseware.domain.revision import merge_revision
 
     raw = {"mode": "full", "deck": deck("整体改写")}
     with pytest.raises(ValueError, match="整体"):
@@ -557,9 +557,9 @@ def test_repeated_malformed_json_stops_after_three_calls_without_partial_artifac
 
 
 def test_connection_timeout_is_not_misreported_as_json_or_retried(tmp_path):
-    from backend.app.courseware.pipeline import CoursewarePipeline
-    from backend.app.courseware.store import CoursewareStore
-    from backend.app.courseware.models import CoursewareSettings
+    from backend.app.courseware.application.pipeline import CoursewarePipeline
+    from backend.app.courseware.storage.store import CoursewareStore
+    from backend.app.courseware.domain.models import CoursewareSettings
 
     class NoHits:
         def search(self, query):

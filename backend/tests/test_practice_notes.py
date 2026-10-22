@@ -3,8 +3,8 @@ import json
 import pytest
 from docx import Document
 
-from backend.app.timed_practice.documents import render, validate_content
-from backend.app.timed_practice.requirements import resolve_requirements
+from backend.app.timed_practice.tools.documents import render, validate_content
+from backend.app.timed_practice.domain.requirements import resolve_requirements
 from backend.tests.test_timed_practice import paper, settings, source
 
 
@@ -34,7 +34,7 @@ def test_actual_generation_instructions_are_rejected_before_word_export():
 
 
 def test_note_exception_does_not_disable_other_word_checks(tmp_path):
-    from backend.app.timed_practice.documents import validate_practice_word
+    from backend.app.timed_practice.tools.documents import validate_practice_word
 
     path = tmp_path / "broken.docx"
     path.write_bytes(b"not an Office package")

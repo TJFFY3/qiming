@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
-import { defaultSettings as guideSettings } from "./api";
-import { defaultSettings as coursewareSettings } from "./agents/courseware/types";
-import { defaultSettings as practiceSettings } from "./agents/timed-practice/types";
-import { formatLessonPrompt as guidePrompt } from "./prompt";
-import { formatLessonPrompt as coursewarePrompt } from "./agents/courseware/prompt";
-import { formatLessonPrompt as practicePrompt } from "./agents/timed-practice/prompt";
+import { defaultSettings as guideSettings } from "./agents/study-guide/services/api";
+import { defaultSettings as coursewareSettings } from "./agents/courseware/domain/types";
+import { defaultSettings as practiceSettings } from "./agents/timed-practice/domain/types";
+import { formatLessonPrompt as guidePrompt } from "./agents/study-guide/domain/prompt";
+import { formatLessonPrompt as coursewarePrompt } from "./agents/courseware/domain/prompt";
+import { formatLessonPrompt as practicePrompt } from "./agents/timed-practice/domain/prompt";
 import type { LessonContext } from "./lessonPrompt";
 
 const agents = [

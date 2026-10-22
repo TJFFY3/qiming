@@ -1,6 +1,6 @@
 import pytest
 
-from backend.app.equation_validation import (
+from backend.app.shared.chemistry.validation import (
     validate_outline,
     validate_practice,
     validate_study_guide_result,

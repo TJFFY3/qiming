@@ -5,6 +5,7 @@ import copy
 import json
 from pathlib import Path
 import re
+import shutil
 import tempfile
 from docx import Document
 from outline_contract import normalize_outline, outline_digest, OutlineValidationError, fail
@@ -35,7 +36,7 @@ def prepare_document(data):
     return canonical,issues
 
 
-def render_document(data,output_dir,allow_unverified=False,version='v001',previous=None):
+def render_document(data,output_dir,allow_unverified=False,version='v001',previous=None,image_assets=None):
     if not isinstance(version,str) or not re.fullmatch(r'v[0-9]{3,}',version):fail('$.version','版本号须为v001、v002等')
     canonical,source_issues=prepare_document(data)
     if previous is not None and not isinstance(previous,dict):fail('$.previous','必须为对象')
@@ -44,14 +45,25 @@ def render_document(data,output_dir,allow_unverified=False,version='v001',previo
     out=Path(output_dir).expanduser().resolve()
     if out.exists():raise FileExistsError('输出目录已存在；请使用新目录，禁止覆盖旧版本：'+str(out))
     content_tables=[b for s in canonical['sections'] for b in s['blocks'] if b['type']=='table']
-    statistics={'sections':len(canonical['sections']),'paragraphs':sum(b['type']=='paragraph' for s in canonical['sections'] for b in s['blocks']),'content_tables':len(content_tables),'data_rows':sum(len(t['rows']) for t in content_tables),'note_rows':25}
+    image_ids={b['image_id'] for s in canonical['sections'] for b in s['blocks'] if b['type']=='image'}
+    for image_id in image_ids:
+        asset=(image_assets or {}).get(image_id)
+        if asset is None or not Path(asset).is_file():fail('$.images.'+image_id,'缺少图片资源','MISSING_IMAGE')
+    statistics={'images':sum(b['type']=='image' for s in canonical['sections'] for b in s['blocks']),'sections':len(canonical['sections']),'paragraphs':sum(b['type']=='paragraph' for s in canonical['sections'] for b in s['blocks']),'content_tables':len(content_tables),'data_rows':sum(len(t['rows']) for t in content_tables),'note_rows':25}
     out.parent.mkdir(parents=True,exist_ok=True)
     files={name:str(out/filename) for name,filename in [('outline','outline.docx'),('content','content.json'),('source_input','source_input.json'),('report','generation_report.json')]}
     with tempfile.TemporaryDirectory(prefix='.outline-',dir=out.parent) as tmp:
         stage=Path(tmp)/'version';stage.mkdir()
+        snapshots={}
+        if image_ids:
+            (stage/'images').mkdir()
+            for image_id in sorted(image_ids):
+                snapshot=stage/'images'/(image_id+'.bin')
+                shutil.copyfile(image_assets[image_id],snapshot)
+                snapshots[image_id]=snapshot
         display=copy.deepcopy(canonical)
         if draft and not display['title'].lstrip().startswith('待核验'):display['title']='待核验 '+display['title']
-        generate_outline(display,stage/'outline.docx')
+        generate_outline(display,stage/'outline.docx',image_assets=snapshots)
         doc=Document(stage/'outline.docx')
         if len(doc.tables)!=len(content_tables)+1:fail('$.outline','生成的教学表格数与输入不一致，拒绝交付','TABLE_LOSS')
         for i,(table,expected) in enumerate(zip(doc.tables,content_tables)):

@@ -2,7 +2,7 @@ import json
 import httpx
 import pytest
 from backend.app.config import Settings
-from backend.app.library import KnowledgeLibrary
+from backend.app.shared.knowledge.library import KnowledgeLibrary
 
 
 def settings():

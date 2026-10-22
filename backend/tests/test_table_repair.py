@@ -1,6 +1,6 @@
 import copy
 import pytest
-from backend.app.table_repair import (
+from backend.app.study_guide.domain.table_repair import (
     repair_empty_headers,
     header_target,
     apply_header_repair,

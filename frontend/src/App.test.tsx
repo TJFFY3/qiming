@@ -10,7 +10,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import App from "./App";
-import { defaultSettings } from "./api";
+import { defaultSettings } from "./agents/study-guide/services/api";
 
 afterEach(() => {
   cleanup();

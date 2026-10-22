@@ -4,12 +4,12 @@ from zipfile import ZipFile
 
 from lxml import etree
 
-from backend.app.timed_practice.documents import (
+from backend.app.timed_practice.tools.documents import (
     canonical_rich,
     render,
     validate_content,
 )
-from backend.app.timed_practice.requirements import resolve_requirements
+from backend.app.timed_practice.domain.requirements import resolve_requirements
 from backend.tests.test_timed_practice import app_for, paper, settings, source, PREFIX
 from fastapi.testclient import TestClient
 import pytest

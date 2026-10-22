@@ -133,6 +133,35 @@
                     "rows"
                   ],
                   "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+                    },
+                    "type": {
+                      "const": "image"
+                    },
+                    "image_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{24}$"
+                    },
+                    "caption": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "image_id",
+                    "caption"
+                  ],
+                  "additionalProperties": false
                 }
               ]
             }

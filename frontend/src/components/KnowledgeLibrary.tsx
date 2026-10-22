@@ -7,7 +7,7 @@ import {
   Presentation,
   RefreshCw,
 } from "lucide-react";
-import { api, post, type Source } from "../api";
+import { api, post, type Source } from "../agents/study-guide/services/api";
 import { SourceCard } from "./Resources";
 type Document = {
   id: string;

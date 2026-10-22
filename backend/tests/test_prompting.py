@@ -1,9 +1,9 @@
-from backend.app.models import SessionInput
-from backend.app.prompting import compose_prompt, instruction_text
-from backend.app.courseware.models import CoursewareSettings
-from backend.app.courseware.store import CoursewareStore
-from backend.app.timed_practice.models import LessonSettings
-from backend.app.timed_practice.store import PracticeStore
+from backend.app.study_guide.domain.models import SessionInput
+from backend.app.study_guide.llm.prompts import compose_prompt, instruction_text
+from backend.app.courseware.domain.models import CoursewareSettings
+from backend.app.courseware.storage.store import CoursewareStore
+from backend.app.timed_practice.domain.models import LessonSettings
+from backend.app.timed_practice.storage.store import PracticeStore
 import pytest
 
 

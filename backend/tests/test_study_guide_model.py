@@ -6,10 +6,10 @@ import httpx
 import pytest
 
 from backend.app.config import Settings
-from backend.app.documents import DocumentEngine
-from backend.app.model_client import ModelClient
-from backend.app.pipeline import Pipeline
-from backend.app.store import Store
+from backend.app.study_guide.tools.documents import DocumentEngine
+from backend.app.study_guide.llm.client import ModelClient
+from backend.app.study_guide.application.pipeline import Pipeline
+from backend.app.study_guide.storage.store import Store
 
 
 def configured(tmp_path):
@@ -92,7 +92,7 @@ def test_invalid_output_repair_receives_original_and_publishes_docx(tmp_path):
     assert json.loads(diagnostics[0].read_text())["response_text"] == invalid
 
 
-@pytest.mark.parametrize("failure", ["timeout", "http", "config"])
+@pytest.mark.parametrize("failure", ["timeout", "http", "config", "stream"])
 def test_service_errors_are_not_retried_as_content_repairs(tmp_path, failure):
     calls = []
 
@@ -100,6 +100,9 @@ def test_service_errors_are_not_retried_as_content_repairs(tmp_path, failure):
         calls.append(request)
         if failure == "timeout":
             raise httpx.ReadTimeout("test", request=request)
+        if failure == "stream":
+            return httpx.Response(200, headers={"content-type": "text/event-stream"},
+                content=b'data: {"choices":[{"delta":{"content":"{}"}}]}\n\n')
         if failure == "config":
             return httpx.Response(500, json={"code": 513001})
         return httpx.Response(503, json={"error": "down"})
@@ -132,7 +135,7 @@ def test_unrepairable_json_keeps_retry_budget_and_parse_detail(tmp_path):
 @pytest.mark.parametrize("body", [{}, {"choices": []}, {"choices": [None]},
                                    {"choices": [{"message": {}}]}, []])
 def test_malformed_envelope_is_a_service_error(tmp_path, body):
-    from backend.app.model_client import ModelServiceError
+    from backend.app.study_guide.llm.client import ModelServiceError
 
     client = ModelClient(configured(tmp_path), httpx.MockTransport(
         lambda _: httpx.Response(200, json=body)

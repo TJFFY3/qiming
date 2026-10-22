@@ -201,7 +201,7 @@ def test_revision_does_not_restore_deleted_uploads_from_history(tmp_path, legacy
 
 
 def test_revision_context_shares_budget_and_keeps_short_sources_whole():
-    from backend.app.study_guide_context import revision_source_context
+    from backend.app.study_guide.knowledge.context import revision_source_context
 
     sources = [
         {"id": "short", "evidence": "氯气干燥应使用浓硫酸。"},
@@ -219,7 +219,7 @@ def test_revision_context_shares_budget_and_keeps_short_sources_whole():
 
 
 def test_revision_context_uses_explicit_optimization_requirements():
-    from backend.app.study_guide_context import revision_source_context
+    from backend.app.study_guide.knowledge.context import revision_source_context
 
     evidence = "教材前言。" * 6000 + "氯气干燥：必须使用浓硫酸，不得使用碱石灰。" + "附录。" * 6000
     prompt = "优化导学案\n\n【优化提示】\n本课重点：氯气干燥\n补充要求：补充实验试剂选择\n【优化提示结束】"

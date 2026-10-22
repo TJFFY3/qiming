@@ -137,6 +137,9 @@ def normalize_outline(data):
         for bi,block in enumerate(section['blocks']):
             bp=f'{sp}.blocks[{bi}]';check_id(block['id'],bp+'.id')
             if block['type']=='paragraph':check_text(block['content'],bp+'.content');continue
+            if block['type']=='image':
+                if not block['caption'].strip():fail(bp+'.caption','图片说明不能为空白')
+                continue
             n=len(block['headers'])
             for hi,header in enumerate(block['headers']):check_text(header,f'{bp}.headers[{hi}]',True)
             for ri,row in enumerate(block['rows']):

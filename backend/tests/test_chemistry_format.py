@@ -1,6 +1,6 @@
 import copy
 
-from backend.app.chemistry_format import normalize_chemistry
+from backend.app.shared.chemistry.formatting import normalize_chemistry
 
 
 def test_legacy_equation_becomes_semantic_runs_without_changing_evidence():

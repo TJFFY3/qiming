@@ -6,7 +6,7 @@ from zipfile import ZipFile
 import pytest
 from fastapi.testclient import TestClient
 from lxml import etree
-from backend.app.courseware.export import export_deck
+from backend.app.courseware.tools.export import export_deck
 from backend.tests.test_courseware import app_for, PREFIX
 
 NS = {'a': 'http://schemas.openxmlformats.org/drawingml/2006/main', 'p': 'http://schemas.openxmlformats.org/presentationml/2006/main'}
@@ -55,7 +55,7 @@ def test_serialized_unbalanced_reaction_is_repaired_by_model_before_publication(
 
 
 def test_small_condition_exception_does_not_allow_small_body_text(tmp_path):
-    from backend.app.courseware.export import generate_pptx, validate_courseware
+    from backend.app.courseware.tools.export import generate_pptx, validate_courseware
     path = tmp_path/'small.pptx'
     generate_pptx([{'title':'标题','stage':'启','paragraphs':['正文']}],path)
     with ZipFile(path) as z:

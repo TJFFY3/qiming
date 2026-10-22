@@ -1,7 +1,7 @@
 import copy
 from zipfile import ZipFile
 import pytest
-from backend.app.courseware.export import export_deck
+from backend.app.courseware.tools.export import export_deck
 from backend.tests.test_courseware import app_for, PREFIX
 from fastapi.testclient import TestClient
 from lxml import etree

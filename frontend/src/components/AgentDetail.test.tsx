@@ -9,9 +9,9 @@ import {
 } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import App from "../App";
-import { defaultSettings as guideSettings } from "../api";
-import { defaultSettings as courseSettings } from "../agents/courseware/types";
-import { defaultSettings as practiceSettings } from "../agents/timed-practice/types";
+import { defaultSettings as guideSettings } from "../agents/study-guide/services/api";
+import { defaultSettings as courseSettings } from "../agents/courseware/domain/types";
+import { defaultSettings as practiceSettings } from "../agents/timed-practice/domain/types";
 afterEach(() => {
   cleanup();
   localStorage.clear();

@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import pytest
 from docx import Document
-from backend.app.documents import DocumentEngine
+from backend.app.study_guide.tools.documents import DocumentEngine
 
 SAMPLE = json.loads(Path("vendor/chemistry/examples/outline.json").read_text())
 
@@ -72,7 +72,7 @@ def test_rejoined_condition_equation_has_no_internal_word_line_breaks(tmp_path):
     import copy
     from zipfile import ZipFile
     from lxml import etree
-    from backend.app.chemistry_format import normalize_chemistry
+    from backend.app.shared.chemistry.formatting import normalize_chemistry
 
     raw = copy.deepcopy(SAMPLE)
     raw["outline"]["sections"][0]["blocks"].insert(

@@ -1,8 +1,8 @@
 import httpx
 import pytest
 from backend.app.config import Settings
-from backend.app.retrieval import FastGPTRetriever
-from backend.app.model_client import ModelClient
+from backend.app.shared.knowledge.retrieval import FastGPTRetriever
+from backend.app.study_guide.llm.client import ModelClient
 
 
 def configured(**kw):
@@ -110,7 +110,7 @@ def test_fastgpt_app_generation_uses_app_id_and_controlled_prompt():
         body = json.loads(request.content)
         assert request.url.path == "/api/v1/chat/completions"
         assert body["appId"] == "app1"
-        assert body["stream"] is False
+        assert body["stream"] is True
         assert len(body["messages"]) == 1
         assert "system instructions" in body["messages"][0]["content"]
         return httpx.Response(

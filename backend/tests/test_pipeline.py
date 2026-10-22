@@ -3,9 +3,9 @@ import json
 from pathlib import Path
 import pytest
 from backend.app.config import Settings
-from backend.app.store import Store, Conflict
-from backend.app.pipeline import Pipeline
-from backend.app.documents import DocumentEngine
+from backend.app.study_guide.storage.store import Store, Conflict
+from backend.app.study_guide.application.pipeline import Pipeline
+from backend.app.study_guide.tools.documents import DocumentEngine
 
 SAMPLE = json.loads(Path("vendor/chemistry/examples/outline.json").read_text())
 
@@ -229,7 +229,7 @@ def test_optimization_is_visible_in_stored_conversation_and_model_prompt(tmp_pat
 
 def test_fastgpt_wire_prompt_contains_optimization_exactly_once(tmp_path):
     import httpx
-    from backend.app.model_client import ModelClient
+    from backend.app.study_guide.llm.client import ModelClient
 
     store, session, pipeline = setup(tmp_path)
     settings = pipeline.settings

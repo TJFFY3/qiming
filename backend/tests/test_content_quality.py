@@ -1,5 +1,5 @@
 import pytest
-from backend.app.content_quality import check_student_content
+from backend.app.shared.rules.content_quality import check_student_content
 
 
 def test_keeps_student_questions_and_ignores_unpublished_source_diagnostics():

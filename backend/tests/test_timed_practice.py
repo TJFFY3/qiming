@@ -61,7 +61,7 @@ def source(verified=False):
 
 
 def settings():
-    from backend.app.timed_practice.models import LessonSettings
+    from backend.app.timed_practice.domain.models import LessonSettings
 
     return LessonSettings(
         options={
@@ -73,8 +73,8 @@ def settings():
 
 
 def test_custom_contract_and_two_separate_word_files(tmp_path):
-    from backend.app.timed_practice.requirements import resolve_requirements
-    from backend.app.timed_practice.documents import validate_content, render
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
+    from backend.app.timed_practice.tools.documents import validate_content, render
 
     constraints = resolve_requirements(settings(), "请生成限时练习")
     content = validate_content(paper(), constraints, [source()])
@@ -97,8 +97,8 @@ def test_custom_contract_and_two_separate_word_files(tmp_path):
 
 
 def test_invalid_score_sources_origin_and_paths_rejected():
-    from backend.app.timed_practice.requirements import resolve_requirements
-    from backend.app.timed_practice.documents import validate_content
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
+    from backend.app.timed_practice.tools.documents import validate_content
 
     c = resolve_requirements(settings(), "")
     for key, value in [
@@ -122,8 +122,8 @@ def test_invalid_score_sources_origin_and_paths_rejected():
 
 
 def test_requirements_explicit_body_overrides_options_and_default_profile():
-    from backend.app.timed_practice.requirements import resolve_requirements
-    from backend.app.timed_practice.models import LessonSettings
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
+    from backend.app.timed_practice.domain.models import LessonSettings
 
     c = resolve_requirements(settings(), "改为30分钟，满分100分，3道选择题和2道解答题")
     assert (c["duration"], c["total_score"], c["choice_count"], c["written_count"]) == (
@@ -146,7 +146,7 @@ def test_requirements_explicit_body_overrides_options_and_default_profile():
 def app_for(tmp_path, replies=None):
     from backend.app.config import Settings
     from backend.app.main import create_app
-    from backend.app.timed_practice.pipeline import PracticePipeline
+    from backend.app.timed_practice.application.pipeline import PracticePipeline
 
     class Model:
         def generate_json(self, messages):
@@ -221,7 +221,7 @@ def test_independent_namespace_unverified_generation_download_and_revision(tmp_p
 
 
 def test_upload_delete_atomic_reservation_and_restart(tmp_path):
-    from backend.app.timed_practice.store import PracticeStore, PracticeConflict
+    from backend.app.timed_practice.storage.store import PracticeStore, PracticeConflict
 
     store = PracticeStore(tmp_path / "independent.sqlite")
     s = store.create_session(settings())
@@ -257,7 +257,7 @@ def test_upload_delete_atomic_reservation_and_restart(tmp_path):
 
 
 def test_requirement_precedence_and_multiple_written_types():
-    from backend.app.timed_practice.requirements import resolve_requirements
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
 
     s = settings()
     s["options"]["origin"] = "允许改编和出新题"
@@ -270,9 +270,9 @@ def test_requirement_precedence_and_multiple_written_types():
 
 
 def test_default_time_profile_and_missing_optional_options_rejected():
-    from backend.app.timed_practice.documents import validate_content
-    from backend.app.timed_practice.requirements import resolve_requirements
-    from backend.app.timed_practice.models import LessonSettings
+    from backend.app.timed_practice.tools.documents import validate_content
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
+    from backend.app.timed_practice.domain.models import LessonSettings
 
     d = paper()
     d["duration"] = 35
@@ -303,8 +303,8 @@ def test_repair_limit_and_noop_revision_never_publish_files(tmp_path):
 
 
 def test_reviewed_requirements_survive_revision_and_editable_block_is_authoritative():
-    from backend.app.timed_practice.requirements import resolve_requirements
-    from backend.app.timed_practice.models import LessonSettings
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
+    from backend.app.timed_practice.domain.models import LessonSettings
 
     defaults = LessonSettings().model_dump()
     original = resolve_requirements(
@@ -334,8 +334,8 @@ def test_reviewed_requirements_survive_revision_and_editable_block_is_authoritat
 def test_revision_uses_new_resources_and_current_reviews_without_mutating_old_version(
     tmp_path,
 ):
-    from backend.app.timed_practice.pipeline import PracticePipeline
-    from backend.app.timed_practice.store import PracticeStore
+    from backend.app.timed_practice.application.pipeline import PracticePipeline
+    from backend.app.timed_practice.storage.store import PracticeStore
     from backend.app.config import Settings
 
     store = PracticeStore(tmp_path / "practice.sqlite")
@@ -389,8 +389,8 @@ def test_revision_uses_new_resources_and_current_reviews_without_mutating_old_ve
 
 
 def test_interrupted_worker_cannot_publish_a_completed_version(tmp_path):
-    from backend.app.timed_practice.pipeline import PracticePipeline
-    from backend.app.timed_practice.store import PracticeStore
+    from backend.app.timed_practice.application.pipeline import PracticePipeline
+    from backend.app.timed_practice.storage.store import PracticeStore
     from backend.app.config import Settings
 
     store = PracticeStore(tmp_path / "practice.sqlite")
@@ -416,7 +416,7 @@ def test_interrupted_worker_cannot_publish_a_completed_version(tmp_path):
 
 
 def test_public_job_does_not_offer_draft_retries():
-    from backend.app.timed_practice.api import public_job
+    from backend.app.timed_practice.api.routes import public_job
 
     job = public_job(
         {"id": "j", "request": {"kind": "generation", "allow_draft": True}}
@@ -426,8 +426,8 @@ def test_public_job_does_not_offer_draft_retries():
 
 
 def test_realistic_model_option_labels_and_legacy_conditions_are_normalized(tmp_path):
-    from backend.app.timed_practice.documents import validate_content, render
-    from backend.app.timed_practice.requirements import resolve_requirements
+    from backend.app.timed_practice.tools.documents import validate_content, render
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
 
     raw = paper()
     raw["choice"][0]["options"][0] = "A. CaCO₃ ===高温=== CaO + CO₂↑"
@@ -447,9 +447,9 @@ def test_realistic_model_option_labels_and_legacy_conditions_are_normalized(tmp_
 
 
 def test_invalid_json_retries_without_retrying_transport_failures(tmp_path):
-    from backend.app.timed_practice.model_client import ModelOutputError
-    from backend.app.timed_practice.pipeline import PracticePipeline
-    from backend.app.timed_practice.store import PracticeStore
+    from backend.app.timed_practice.llm.client import ModelOutputError
+    from backend.app.timed_practice.application.pipeline import PracticePipeline
+    from backend.app.timed_practice.storage.store import PracticeStore
     from backend.app.config import Settings
 
     store = PracticeStore(tmp_path / "practice.sqlite")
@@ -485,9 +485,9 @@ def test_invalid_json_retries_without_retrying_transport_failures(tmp_path):
 
 
 def test_json_repair_uses_actual_error_and_keeps_redacted_diagnostics(tmp_path):
-    from backend.app.timed_practice.model_client import ModelOutputError
-    from backend.app.timed_practice.pipeline import PracticePipeline
-    from backend.app.timed_practice.store import PracticeStore
+    from backend.app.timed_practice.llm.client import ModelOutputError
+    from backend.app.timed_practice.application.pipeline import PracticePipeline
+    from backend.app.timed_practice.storage.store import PracticeStore
     from backend.app.config import Settings
 
     store = PracticeStore(tmp_path / "practice.sqlite")
@@ -527,8 +527,8 @@ def test_json_repair_uses_actual_error_and_keeps_redacted_diagnostics(tmp_path):
 
 
 def test_model_network_failure_is_not_automatically_retried(tmp_path):
-    from backend.app.timed_practice.pipeline import PracticePipeline
-    from backend.app.timed_practice.store import PracticeStore
+    from backend.app.timed_practice.application.pipeline import PracticePipeline
+    from backend.app.timed_practice.storage.store import PracticeStore
     from backend.app.config import Settings
 
     store = PracticeStore(tmp_path / "practice.sqlite")
@@ -556,8 +556,8 @@ def test_model_network_failure_is_not_automatically_retried(tmp_path):
 
 
 def test_semantic_run_defaults_do_not_erase_subscripts_and_normalization_is_idempotent():
-    from backend.app.timed_practice.documents import validate_content
-    from backend.app.timed_practice.requirements import resolve_requirements
+    from backend.app.timed_practice.tools.documents import validate_content
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
 
     raw = paper()
     raw["written"][0]["stem"] = [{"text": "2[H2O] 与 [SO4^2-] 的变化：________"}]
@@ -572,8 +572,8 @@ def test_semantic_run_defaults_do_not_erase_subscripts_and_normalization_is_idem
 
 
 def test_unlocatable_original_is_never_published_as_original_when_new_questions_are_allowed():
-    from backend.app.timed_practice.documents import validate_content, source_issues
-    from backend.app.timed_practice.requirements import resolve_requirements
+    from backend.app.timed_practice.tools.documents import validate_content, source_issues
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
 
     raw = paper()
     raw["choice"][0]["origin"] = "original"
@@ -590,8 +590,8 @@ def test_unlocatable_original_is_never_published_as_original_when_new_questions_
 
 
 def test_template_and_format_samples_cannot_be_claimed_as_question_sources():
-    from backend.app.timed_practice.documents import validate_content
-    from backend.app.timed_practice.requirements import resolve_requirements
+    from backend.app.timed_practice.tools.documents import validate_content
+    from backend.app.timed_practice.domain.requirements import resolve_requirements
 
     template = dict(source(), title="限时练模板.docx")
     requirements = resolve_requirements(settings(), "允许改编和出新题")
@@ -607,8 +607,8 @@ def test_template_and_format_samples_cannot_be_claimed_as_question_sources():
 
 def test_no_sources_still_generates_when_new_questions_are_allowed(tmp_path):
     from backend.app.config import Settings
-    from backend.app.timed_practice.pipeline import PracticePipeline
-    from backend.app.timed_practice.store import PracticeStore
+    from backend.app.timed_practice.application.pipeline import PracticePipeline
+    from backend.app.timed_practice.storage.store import PracticeStore
 
     store = PracticeStore(tmp_path / "practice.sqlite")
     lesson = settings()
@@ -637,8 +637,8 @@ def test_no_sources_still_generates_when_new_questions_are_allowed(tmp_path):
 @pytest.mark.parametrize("verified", [False, True])
 def test_retrieved_source_verification_is_preserved(tmp_path, verified):
     from backend.app.config import Settings
-    from backend.app.timed_practice.pipeline import PracticePipeline
-    from backend.app.timed_practice.store import PracticeStore
+    from backend.app.timed_practice.application.pipeline import PracticePipeline
+    from backend.app.timed_practice.storage.store import PracticeStore
 
     store = PracticeStore(tmp_path / "practice.sqlite")
     session = store.create_session(settings())

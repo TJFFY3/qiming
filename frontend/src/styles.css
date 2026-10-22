@@ -1118,6 +1118,33 @@ legend {
 .paper-preview li {
   padding-left: 4px;
 }
+.paper-preview .original-image,
+.tp-paper .original-image {
+  margin: 18px 0;
+  text-align: center;
+}
+.original-image img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  margin: 0 auto;
+}
+.original-image figcaption {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #64748b;
+  overflow-wrap: anywhere;
+}
+.original-image-fallback {
+  padding: 24px 16px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  color: #64748b;
+  background: #f8fafc;
+}
 .table-scroll {
   overflow-x: auto;
   margin: 14px 0;

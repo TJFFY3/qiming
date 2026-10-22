@@ -7,7 +7,7 @@ import {
   ChevronDown,
   Trash2,
 } from "lucide-react";
-import type { Source } from "../api";
+import type { Source } from "../agents/study-guide/services/api";
 import Modal from "./Modal";
 import KnowledgeLibrary from "./KnowledgeLibrary";
 import { sourceNotes, sourceTitle } from "../sourceDisplay";

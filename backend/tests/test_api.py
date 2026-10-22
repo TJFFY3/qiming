@@ -77,7 +77,7 @@ def test_unknown_review_and_invalid_revision(tmp_path):
 
 
 def test_full_library_is_independent_of_session_recall(tmp_path, monkeypatch):
-    from backend.app.library import KnowledgeLibrary
+    from backend.app.shared.knowledge.library import KnowledgeLibrary
 
     docs = [
         {
@@ -112,7 +112,7 @@ def test_full_library_is_independent_of_session_recall(tmp_path, monkeypatch):
 
 
 def test_failed_full_sync_retains_previous_catalog(tmp_path, monkeypatch):
-    from backend.app.library import KnowledgeLibrary
+    from backend.app.shared.knowledge.library import KnowledgeLibrary
 
     monkeypatch.setattr(
         KnowledgeLibrary, "synchronize", lambda _: [{"id": "ok", "chunks": []}]
@@ -178,7 +178,7 @@ def test_deleting_resource_during_generation_is_rejected(tmp_path):
 
 
 def test_legacy_content_error_is_explained_without_losing_technical_detail():
-    from backend.app.api import public_job
+    from backend.app.study_guide.api.routes import public_job
 
     detail = "内容校验失败，已修复两轮：$.outline.sections[3].blocks[3].headers[0]: 文本不能为空白"
     job = public_job({"id": "old", "request": {"kind": "generation"}, "error": detail})
@@ -192,7 +192,7 @@ def test_historical_guide_downloads_remove_review_labels_without_changing_saved_
     import json
     from io import BytesIO
     from docx import Document
-    from backend.app.documents import DocumentEngine
+    from backend.app.study_guide.tools.documents import DocumentEngine
 
     app = create_app(Settings(data_dir=tmp_path))
     with TestClient(app) as client:

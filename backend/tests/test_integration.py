@@ -6,10 +6,10 @@ import httpx
 from fastapi.testclient import TestClient
 from backend.app.config import Settings
 from backend.app.main import create_app
-from backend.app.pipeline import Pipeline
-from backend.app.retrieval import FastGPTRetriever
-from backend.app.model_client import ModelClient
-from backend.app.documents import DocumentEngine
+from backend.app.study_guide.application.pipeline import Pipeline
+from backend.app.shared.knowledge.retrieval import FastGPTRetriever
+from backend.app.study_guide.llm.client import ModelClient
+from backend.app.study_guide.tools.documents import DocumentEngine
 
 SAMPLE = json.loads(Path("vendor/chemistry/examples/outline.json").read_text())
 

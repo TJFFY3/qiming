@@ -7,7 +7,7 @@ import {
   Sparkles,
   LoaderCircle,
 } from "lucide-react";
-import type { Settings } from "../api";
+import type { Settings } from "../agents/study-guide/services/api";
 export default function Composer<
   T extends { chapter: string; period: string } = Settings,
 >({
