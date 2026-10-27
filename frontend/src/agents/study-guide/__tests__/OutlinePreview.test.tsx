@@ -189,3 +189,10 @@ test("removes forced breaks surrounding an existing semantic condition", () => {
   expect(container.querySelector(".chemical-equation")).not.toBeNull();
   expect(container.querySelectorAll("br")).toHaveLength(0);
 });
+
+test("reaction conditions use continuous rules rather than repeated equals glyphs", () => {
+  const { container } = render(<Rich value={[{ text: "高温", condition: true }]} />);
+  expect(container.querySelector(".condition small")?.textContent).toBe("高温");
+  expect(container.querySelector(".condition-line")).not.toBeNull();
+  expect(container.textContent).not.toContain("=====");
+});

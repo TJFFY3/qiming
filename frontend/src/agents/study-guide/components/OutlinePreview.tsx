@@ -46,7 +46,7 @@ function RunText({ run }: { run: Run }) {
     body = (
       <span className="condition">
         <small>{body}</small>
-        <span>=====</span>
+        <span className="condition-line" aria-hidden="true" />
       </span>
     );
   if (run.sub) body = <sub>{body}</sub>;

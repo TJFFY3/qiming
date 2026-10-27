@@ -1197,6 +1197,14 @@ legend {
   position: relative;
   line-height: 1;
   vertical-align: baseline;
+  min-width: 2.5em;
+  margin: 0 0.15em;
+}
+.condition-line {
+  display: inline-block;
+  width: 100%;
+  border-top: 3px double currentColor;
+  vertical-align: middle;
 }
 .condition small {
   position: absolute;

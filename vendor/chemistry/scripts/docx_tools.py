@@ -47,7 +47,7 @@ def fix_docx_fonts(d):
         for key in ('ascii','hAnsi','cs'):node.set(qn('w:'+key),'Times New Roman')
     return d
 
-def _p(d,value='',bold=False,size=11,cjk='宋体',align=None):
+def _p(d,value='',bold=False,size=11,cjk='宋体',align=None,solid_conditions=False):
     p=d.add_paragraph();p.paragraph_format.line_spacing=1.1
     p.paragraph_format.space_after=Pt(4)
     if align is not None:p.alignment=align
@@ -57,8 +57,8 @@ def _p(d,value='',bold=False,size=11,cjk='宋体',align=None):
         for part in parts:
             if not part:continue
             if re.fullmatch(r'　{4,}|_{3,}',part):add_docx_runs(p,[{'text':part.replace('_',' '),'underline':True}])
-            else:add_docx_runs(p,part)
-    else:add_docx_runs(p,value)
+            else:add_docx_runs(p,part,solid_conditions=solid_conditions)
+    else:add_docx_runs(p,value,solid_conditions=solid_conditions)
     for r in p.runs:
         r.font.size=Pt(size)
         if bold:r.bold=True
@@ -109,7 +109,7 @@ def _outline_table(d,block):
                         if part:runs.append({**run,'text':part.replace('_',' ') if re.fullmatch(r'_{3,}',part) else part,**({'underline':True} if re.fullmatch(r'_{3,}',part) else {})})
                 value=runs
             # Use the same semantic chemistry-run path as ordinary paragraphs.
-            _p(cell,'' if value is None else value,bold=index==0,align=WD_ALIGN_PARAGRAPH.CENTER if index==0 else None)
+            _p(cell,'' if value is None else value,bold=index==0,align=WD_ALIGN_PARAGRAPH.CENTER if index==0 else None,solid_conditions=True)
             cell._tc.remove(initial)
             if index==0:
                 shade=OxmlElement('w:shd');shade.set(qn('w:fill'),'E7EEF5');cell._tc.get_or_add_tcPr().append(shade)
@@ -138,7 +138,7 @@ def generate_outline(data,output_path,image_assets=None):
     d=_template('导学提纲模板.docx');_title(d,data['title']+'导学提纲',16)
     _p(d,'班级________　姓名________　小组________')
     _heading(d,'【学习目标】')
-    for text in data['goals']:_p(d,text)
+    for text in data['goals']:_p(d,text,solid_conditions=True)
     _heading(d,'【基础自学】')
     if data.get('schedule_note'):_p(d,data['schedule_note'])
     group='【基础自学】'
@@ -150,9 +150,9 @@ def generate_outline(data,output_path,image_assets=None):
         for block in section['blocks']:
             if block['type']=='table':_outline_table(d,block)
             elif block['type']=='image':_outline_image(d,block,image_assets)
-            else:_p(d,block['content'])
+            else:_p(d,block['content'],solid_conditions=True)
     for thought in data.get('thinking',[]):
-        p=_p(d,'思考　',True,11,'楷体_GB2312');add_docx_runs(p,thought)
+        p=_p(d,'思考　',True,11,'楷体_GB2312');add_docx_runs(p,thought,solid_conditions=True)
     _p(d,'注：请在空白区完整写出你的疑惑，以便交流探讨。',cjk='楷体_GB2312')
     _heading(d,'【笔记区域】')
     table=d.add_table(rows=25,cols=1);table.autofit=False;table.columns[0].width=Cm(15.4)

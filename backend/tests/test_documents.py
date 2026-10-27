@@ -92,7 +92,7 @@ def test_rejoined_condition_equation_has_no_internal_word_line_breaks(tmp_path):
     with ZipFile(tmp_path / "joined/outline.docx") as archive:
         root = etree.fromstring(archive.read("word/document.xml"))
         paragraphs = root.xpath(
-            '//w:p[.//m:limUpp/m:lim//m:t[text()="高温"]]', namespaces=ns
+            '//w:p[.//w:ruby/w:rt//w:t[text()="高温"]]', namespaces=ns
         )
         assert len(paragraphs) == 1
         paragraph = paragraphs[0]

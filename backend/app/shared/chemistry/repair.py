@@ -118,6 +118,7 @@ def equation_repair_messages(targets, context=None):
          '若不能一步完成，可返回多步完整反应式，以换行分隔；每一步分别核验原子数和电荷守恒。'
          '转化关系图与待学生作答的转化题不是完整反应式，不能把转化箭头当成完整反应并擅自填掉学生答案。'
          '化学式用 [H2O]，离子用 [Fe^3+]、[OH-]，反应条件使用扁平run数组；修正时保留必要的说明语义但只返回方程式字段。'
+         '条件只写为 {"text":"高温","condition":true}；连接线由渲染器画连续双实线，禁止输出 ===== 或横杠拼接线。'
          '只返回 JSON {"repairs":[{"id":"equation-1","content":"修正后的完整方程式或扁平run数组"}]}。'
          '每个目标ID恰好返回一次，不返回完整导学案，不修改其他正文、章节、表格或来源。'},
         {'role': 'user', 'content': json.dumps({'equations': equations, 'context': context or {}}, ensure_ascii=False)},

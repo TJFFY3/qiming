@@ -419,7 +419,7 @@ def test_legacy_equation_is_normalized_in_preview_and_native_word(tmp_path):
     xml = document._element.xml
     assert "===高温===" not in xml and "&lt;br&gt;" not in xml
     assert 'w:val="subscript"' in xml
-    assert "m:limUpp" in xml
+    assert "w:ruby" in xml
     assert "高温" in xml
     assert any(
         n["method"] == "chemistry_format" for n in version["report"]["format_repairs"]
@@ -486,7 +486,7 @@ def test_heating_equation_native_word_preserves_baseline_coefficient(tmp_path):
     para = next(p for p in doc.paragraphs if "KMnO" in p.text)
     xml = para._p.xml
     assert "→" not in xml
-    assert "△" in xml and "m:limUpp" in xml
+    assert "△" in xml and "w:ruby" in xml
     coefficient = next(r for r in para.runs if r.text)
     assert coefficient.text == "2"
     assert not coefficient.font.subscript

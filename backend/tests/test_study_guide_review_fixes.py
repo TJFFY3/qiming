@@ -56,7 +56,7 @@ def test_serialized_runs_become_native_content_and_word(tmp_path, field):
     assert '"condition"' not in xml and '"text"' not in xml
     root = etree.fromstring(xml.encode())
     assert root.xpath(
-        '//w:instrText[contains(text(), "点燃")]',
+        '//w:ruby/w:rt//w:t[text()="点燃"]',
         namespaces={"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"},
     )
 

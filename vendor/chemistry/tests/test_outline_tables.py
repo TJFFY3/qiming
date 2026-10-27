@@ -76,7 +76,7 @@ class OutlineTableTests(unittest.TestCase):
         table = doc.tables[0]
         chemistry = table.cell(1, 1)._tc
         self.assertIn('12', ''.join(chemistry.xpath('.//w:instrText/text()')))
-        self.assertTrue(chemistry.xpath('.//m:limUpp'))
+        self.assertTrue(chemistry.xpath('.//w:ruby/w:rubyBase/w:r/w:rPr/w:u[@w:val="double"]'))
         self.assertTrue(chemistry.xpath('.//w:vertAlign[@w:val="subscript"]'))
         self.assertIn('2-', ''.join(table.cell(2, 1)._tc.xpath('.//w:instrText/text()')))
         self.assertTrue(table.cell(1, 3)._tc.xpath('.//w:r[w:rPr/w:u]'))

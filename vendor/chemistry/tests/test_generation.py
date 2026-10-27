@@ -66,3 +66,12 @@ class DocumentTests(unittest.TestCase):
             with self.assertRaises(ValueError):generate_paper(bad,p)
 
 if __name__=='__main__':unittest.main()
+
+
+def test_reaction_condition_uses_native_continuous_double_rule():
+    d=Document();p=d.add_paragraph()
+    add_docx_runs(p,[{'text':'高温','condition':True}],solid_conditions=True)
+    assert '=====' not in p._p.xml
+    assert p._p.xpath('.//w:ruby/w:rubyBase/w:r/w:rPr/w:u[@w:val="double"]')
+    assert p._p.xpath('.//w:ruby/w:rt/w:r/w:t[text()="高温"]')
+    assert not p._p.xpath('.//w:instrText')

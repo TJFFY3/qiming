@@ -64,7 +64,7 @@ def _native(paragraph,item):
     return run
 
 
-def add_docx_runs(paragraph,value):
+def add_docx_runs(paragraph,value,solid_conditions=False):
     runs=normalize_runs(value)
     pending=[]
     for item in runs:
@@ -80,7 +80,22 @@ def add_docx_runs(paragraph,value):
             _field_char(paragraph,'end');pending=[];continue
         for p in pending:_native(paragraph,p)
         pending=[]
-        if item.get('condition') or item.get('isotope'):
+        if item.get('condition') and solid_conditions:
+            # Word ruby centers editable condition text over one double rule.
+            # Underlining a preserved space draws real continuous lines.
+            ruby=OxmlElement('w:ruby');props=OxmlElement('w:rubyPr')
+            for tag,val in [('rubyAlign','center'),('hps','14'),('hpsRaise','10'),('hpsBaseText','22')]:
+                node=OxmlElement('w:'+tag);node.set(qn('w:val'),val);props.append(node)
+            ruby.append(props)
+            label=OxmlElement('w:rt');r=OxmlElement('w:r');rp=OxmlElement('w:rPr')
+            size=OxmlElement('w:sz');size.set(qn('w:val'),'14');rp.append(size);r.append(rp)
+            t=OxmlElement('w:t');t.text=item['text'];r.append(t);label.append(r);ruby.append(label)
+            base=OxmlElement('w:rubyBase');r=OxmlElement('w:r');rp=OxmlElement('w:rPr')
+            line=OxmlElement('w:u');line.set(qn('w:val'),'double');rp.append(line)
+            position=OxmlElement('w:position');position.set(qn('w:val'),'6');rp.append(position)
+            r.append(rp);t=OxmlElement('w:t');t.set(qn('xml:space'),'preserve');t.text='\u2003\u2003';r.append(t);base.append(r);ruby.append(base)
+            outer=paragraph.add_run();outer.font.name='Times New Roman';outer._r.append(ruby)
+        elif item.get('condition') or item.get('isotope'):
             _field_char(paragraph,'begin')
             if item.get('isotope'):
                 iso=item['isotope']; _instruction(paragraph,f" eq \\o(\\s\\up11({iso['mass']}),\\s\\do4({iso['atomic']})) ")
