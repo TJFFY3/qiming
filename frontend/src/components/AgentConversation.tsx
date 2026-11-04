@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom";
+import { useWorkbench, WorkbenchPreview } from "./AgentWorkbench";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -18,7 +20,10 @@ export type DetailJob = {
   id: string;
   status: "queued" | "running" | "completed" | "failed";
   created_at?: string;
-  stages: { label: string; status: string }[];
+  ended_at?: string;
+  updated_at?: string;
+  duration_seconds?: number;
+  stages: { label: string; status: string; started_at?: string; ended_at?: string; duration_seconds?: number }[];
   error?: string | null;
   error_detail?: string | null;
 };
@@ -45,19 +50,17 @@ export function ConversationHeader({
   historyLabel?: string;
   newLabel?: string;
 }) {
-  return (
+  const workbench = useWorkbench();
+  const header = (
     <header className="conversation-header">
-      <button className="text-button muted" onClick={onBack}>
-        <ArrowLeft size={20} />
-        返回备课
-      </button>
+      <button className="icon-button" aria-label="返回备课" title="返回备课" onClick={() => { workbench?.showChat(); onBack(); }}><ArrowLeft size={20} /></button>
       <div>
-        <h1>
+        <h1 title={`${chapter} · ${period} · ${product}`}>
           {chapter} · {period} · {product}
         </h1>
-        <p>对话式生成</p>
       </div>
       <div className="conversation-actions">
+        {!workbench && <>
         <button className="text-button" onClick={onSources}>
           <Library size={18} />
           资料库
@@ -69,17 +72,20 @@ export function ConversationHeader({
         >
           <History size={19} />
         </button>
-        <button
+        </>}
+        {!workbench && <button
           className="button secondary small"
           disabled={busy}
           onClick={onNew}
         >
           <Plus size={16} />
           {newLabel}
-        </button>
+        </button>}
       </div>
     </header>
   );
+  if (!workbench) return header;
+  return workbench.headerTarget ? createPortal(header, workbench.headerTarget) : null;
 }
 export function BackgroundTaskNotice({
   product,
@@ -126,6 +132,18 @@ export function BackgroundTaskNotice({
     </div>
   );
 }
+function elapsedSeconds(start?: string, end?: string | number, recorded?: number) {
+  if (recorded !== undefined && Number.isFinite(recorded)) return Math.max(0, recorded);
+  const from = Date.parse(start || "");
+  const to = typeof end === "number" ? end : Date.parse(end || "");
+  return Number.isFinite(from) && Number.isFinite(to) ? Math.max(0, (to-from)/1000) : null;
+}
+function formatElapsed(seconds: number | null) {
+  if (seconds === null) return "未记录";
+  if (seconds < 1) return "<1秒";
+  const value = Math.floor(seconds);
+  return value < 60 ? `${value}秒` : `${Math.floor(value/60)}分${value%60}秒`;
+}
 function TaskProgress({
   job,
   product,
@@ -141,26 +159,15 @@ function TaskProgress({
   onRetry: () => void;
   children?: ReactNode;
 }) {
-  const [elapsed, setElapsed] = useState(0);
-  const started = useRef({ id: "", time: 0 });
+  const [clock, setClock] = useState(Date.now());
   useEffect(() => {
-    if (started.current.id !== job.id) {
-      const date = Date.parse(job.created_at || "");
-      started.current = {
-        id: job.id,
-        time: Number.isFinite(date) ? date : Date.now(),
-      };
-    }
-    const tick = () =>
-      setElapsed(
-        Math.max(0, Math.floor((Date.now() - started.current.time) / 1000)),
-      );
-    tick();
-    if (job.status === "queued" || job.status === "running") {
-      const timer = setInterval(tick, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [job.id, job.created_at, job.status]);
+    setClock(Date.now());
+    if (job.status !== "queued" && job.status !== "running") return;
+    const timer = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [job.id, job.status]);
+  const running = job.status === "queued" || job.status === "running";
+  const elapsed = elapsedSeconds(job.created_at, running ? clock : job.ended_at || job.updated_at, running ? undefined : job.duration_seconds);
   return (
     <div
       className={"progress-card " + (job.status === "failed" ? "failed" : "")}
@@ -186,9 +193,7 @@ function TaskProgress({
           <p>
             已完成 {job.stages.filter((s) => s.status === "completed").length}{" "}
             个阶段
-            {busy
-              ? ` · 已用时 ${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`
-              : ""}
+            {running ? ` · 已用时 ${formatElapsed(elapsed)}` : ""}
           </p>
         </div>
       </div>
@@ -204,6 +209,7 @@ function TaskProgress({
                 <LoaderCircle size={17} className="spin" />
               )}
               <span>{s.label}</span>
+              <small className="stage-duration">{formatElapsed(elapsedSeconds(s.started_at, s.ended_at || (running && s.status === "running" ? clock : undefined), s.duration_seconds))}</small>
               <small>
                 {s.status === "completed"
                   ? "已完成"
@@ -233,6 +239,7 @@ function TaskProgress({
           </div>
         )}
       </div>
+      {!running && <p className="task-total-duration">总耗时 {formatElapsed(elapsed)}</p>}
       {children}
       {(job.error || job.status === "failed") && (
         <div className="task-error">
@@ -259,6 +266,7 @@ function TaskProgress({
 }
 export function ConversationView({
   request,
+  messages,
   product,
   job,
   busy,
@@ -272,6 +280,7 @@ export function ConversationView({
   progressExtra,
 }: {
   request: string;
+  messages?: { role: string; content: string }[];
   product: string;
   job?: DetailJob;
   busy: boolean;
@@ -284,19 +293,12 @@ export function ConversationView({
   children?: ReactNode;
   progressExtra?: ReactNode;
 }) {
-  return (
-    <div className="conversation-content">
-      <div className="user-bubble">{request}</div>
-      <div className="assistant-row">
-        <div className="assistant-avatar">
-          <Sparkles size={21} />
-        </div>
-        <div className="assistant-main">
-          <div className="agent-caption">
-            <BadgeCheck size={16} />
-            启鸣 AI · {product === "导学案" ? "化学教学设计" : product}
-            <span>基于知识库与教学规范</span>
-          </div>
+  const workbench = useWorkbench();
+  const latestTurn = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    latestTurn.current?.scrollIntoView?.({ block: "end" });
+  }, [messages?.length, job?.id]);
+  const progress = (<>
           {job && (
             <TaskProgress
               job={job}
@@ -308,6 +310,8 @@ export function ConversationView({
               {progressExtra}
             </TaskProgress>
           )}
+  </>);
+  const preview = (<>
           {version && (
             <>
               <div className="version-bar">
@@ -342,8 +346,42 @@ export function ConversationView({
               <p>输入本课要求，开始生成{product}。</p>
             </div>
           )}
+  </>);
+  return (
+    <div className="conversation-content">
+      <div className="conversation-transcript" aria-label="对话记录">
+        {(messages?.filter((m) => m.role === "user" || m.role === "assistant").length
+          ? messages.filter((m) => m.role === "user" || m.role === "assistant")
+          : [{ role: "user", content: request }]).map((message, index) => (
+          <div key={index} className={message.role === "user" ? "user-bubble" : "assistant-message"}>
+            {message.role === "assistant" && <small>启鸣 AI</small>}
+            <div>{message.content}</div>
+          </div>
+        ))}
+      </div>
+      <div className="assistant-row">
+        <div className="assistant-avatar">
+          <Sparkles size={21} />
+        </div>
+        <div className="assistant-main">
+          <div className="agent-caption">
+            <BadgeCheck size={16} />
+            启鸣 AI · {product === "导学案" ? "教学设计" : product}
+            <span>基于知识库与教学规范</span>
+          </div>
+          {workbench ? (
+            <>
+              {progress}
+              <div className="workbench-task-reply">
+                <p>{busy ? `正在处理你的${product}任务，执行进度会在此更新。` : job?.status === "failed" ? "本次任务未完成，可查看下方详情并重试。" : version ? `${product}文件已准备好，可在右侧预览、下载或继续修改。` : `描述本课要求，开始生成${product}。`}</p>
+                <button className="text-button" onClick={workbench.showPreview}><Focus size={15} />在右侧查看文件<ChevronRight size={15} /></button>
+              </div>
+              <WorkbenchPreview>{preview}</WorkbenchPreview>
+            </>
+          ) : <>{progress}{preview}</>}
         </div>
       </div>
+      <div ref={latestTurn} className="conversation-latest-turn" />
     </div>
   );
 }

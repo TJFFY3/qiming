@@ -189,7 +189,7 @@ test("generation does not require a source-verification opt-in", async () => {
   ).toBeNull();
 });
 
-test.each(["新建备课", "返回备课"])(
+test.each(["新建任务", "启鸣 AI 首页"])(
   "%s starts a fresh conversation with default optimization and no old prompt",
   async (entry) => {
     localStorage.setItem("qiming-session", "old-session");
@@ -342,7 +342,7 @@ test.each(["queued", "running"])(
       }),
     );
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "返回备课" }));
+    fireEvent.click(await screen.findByRole("button", { name: "启鸣 AI 首页" }));
     expect(screen.getByRole("tab", { name: "互动课件" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "查看任务" })).toBeTruthy();
     expect(localStorage.getItem("qiming-session")).toBe("active-guide");
@@ -416,13 +416,13 @@ test("returning home while submission is pending is not undone by its delayed re
   fireEvent.change(prompt, { target: { value: "重新生成导学案" } });
   fireEvent.click(screen.getByRole("button", { name: "提交修改" }));
   await waitFor(() => expect(started).toBe(true));
-  fireEvent.click(screen.getByRole("button", { name: "返回备课" }));
+  fireEvent.click(screen.getByRole("button", { name: "启鸣 AI 首页" }));
   await act(async () => {
     accepted = true;
     release(Response.json(job));
   });
   expect(screen.getByRole("tab", { name: "互动课件" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "查看任务" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "返回备课" })).toBeNull();
+  expect(screen.queryByRole("textbox", { name: "继续修改导学案" })).toBeNull();
   expect(localStorage.getItem("qiming-session")).toBe("pending-guide");
 });

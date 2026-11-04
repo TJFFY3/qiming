@@ -23,6 +23,7 @@ class CoursewareOptions(StrictModel):
 
 
 class CoursewareSettings(StrictModel):
+    subject: Literal["语文", "数学", "英语", "物理", "化学", "生物", "政治", "历史", "地理"] = "化学"
     chapter: str = Field("第三节 氧化还原反应", min_length=1, max_length=200)
     period: Literal["第一课时", "第二课时"] = "第一课时"
     edition: str = Field("人教版 必修第一册", min_length=1, max_length=200)

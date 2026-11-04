@@ -3,7 +3,7 @@
 import re
 
 
-LESSON_CONTEXT = r"^学科：化学\n教材版本：[^\n]*\n年级：[^\n]*\n章节 / 知识点：[^\n]*\n课时：[^\n]*(?:\n|$)"
+LESSON_CONTEXT = r"^学科：[^\n]*\n教材版本：[^\n]*\n年级：[^\n]*\n章节 / 知识点：[^\n]*\n课时：[^\n]*(?:\n|$)"
 
 
 
@@ -13,7 +13,7 @@ def compose_lesson_context(prompt, settings, optimization_pattern):
     instruction = re.sub(LESSON_CONTEXT, "", instruction, flags=re.M).strip()
     context = "\n".join(
         [
-            "学科：化学",
+            f"学科：{settings.get('subject', '化学')}",
             f"教材版本：{settings.get('edition', '人教版 必修第一册')}",
             f"年级：{settings.get('grade', '高一')}",
             f"章节 / 知识点：{settings.get('chapter', '')}",

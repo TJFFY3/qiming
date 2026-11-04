@@ -1,5 +1,7 @@
 """【接口层·限时练习】装配独立练习依赖，提供会话、任务、资料、预览与两份 Word 下载。"""
 
+from backend.app.shared.workflow.binding import missing_workflow_settings
+
 import hashlib
 import json
 import uuid
@@ -10,11 +12,10 @@ from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from backend.app.shared.tools.publication import clean_public, clean_office_download
 from backend.app.shared.knowledge.library import KnowledgeLibrary
 from backend.app.shared.tools.resources import extract_resource, MAX_BYTES
-from backend.app.shared.knowledge.retrieval import FastGPTRetriever
+from backend.app.shared.workflow.client import WorkflowClient
 from backend.app.timed_practice.configuration.settings import practice_settings
 from backend.app.timed_practice.domain.models import LessonSettings, GenerateInput, ReviseInput, ReviewInput
 from backend.app.timed_practice.storage.store import PracticeStore
-from backend.app.timed_practice.llm.client import PracticeModelClient
 from backend.app.timed_practice.application.pipeline import PracticePipeline
 from backend.app.timed_practice.domain.equations import format_content
 from backend.app.timed_practice.tools.formatted_download import formatted_artifact
@@ -55,7 +56,7 @@ def make_router(base_settings, pipeline_factory=None):
         pipeline_factory(settings, store)
         if pipeline_factory
         else PracticePipeline(
-            settings, store, FastGPTRetriever(settings), PracticeModelClient(settings)
+            settings, store, None, WorkflowClient(settings)
         )
     )
     router = APIRouter(prefix="/api/timed-practice", tags=["独立限时练习"])
@@ -77,7 +78,7 @@ def make_router(base_settings, pipeline_factory=None):
 
     @router.get("/health")
     def health():
-        return dict(ready=not settings.missing(), missing=settings.missing())
+        return dict(ready=not missing_workflow_settings(settings), missing=missing_workflow_settings(settings))
 
     @router.get("/library")
     def catalog():

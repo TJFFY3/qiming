@@ -49,17 +49,6 @@ export default function Composer({
         }
       >
         <div className="composer-options">
-          <label>
-            课件格式
-            <select
-              aria-label="课件格式"
-              value={settings.format}
-              onChange={() => {}}
-              disabled={busy}
-            >
-              <option>传统 PPT</option>
-            </select>
-          </label>
           {conversation && (
             <label>
               修改方式

@@ -3,6 +3,7 @@ import {
   BookOpen,
   ChevronDown,
   FileText,
+  Folder,
   LoaderCircle,
   Presentation,
   RefreshCw,
@@ -13,6 +14,8 @@ type Document = {
   id: string;
   title: string;
   dataset_name: string;
+  dataset_id?: string;
+  subject?: string;
   kind: string;
   chunks: Source[];
 };
@@ -35,7 +38,7 @@ export default function KnowledgeLibrary({
     (async () => {
       try {
         let value = await api<Library>(libraryPath + "/library");
-        if (!value.synced_at)
+        if (!value.synced_at || value.documents.some(d => d.dataset_id && d.subject === undefined))
           value = await post<Library>(libraryPath + "/library/sync", {});
         if (!cancelled) setData(value);
       } catch (e) {
@@ -61,7 +64,7 @@ export default function KnowledgeLibrary({
   };
   const documents =
     data?.documents.filter((d) =>
-      `${d.title} ${d.dataset_name}`
+      `${d.subject || ""} ${d.title} ${d.dataset_name}`
         .toLowerCase()
         .includes(query.toLowerCase()),
     ) || [];
@@ -104,8 +107,17 @@ export default function KnowledgeLibrary({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      {documents.map((d) => (
-        <DocumentCard key={d.id} document={d} libraryPath={libraryPath} />
+      {Array.from(new Set(documents.map(d => d.subject || "未分类"))).map(subject => (
+        <details className="library-subject-folder" key={subject} open>
+          <summary><Folder size={18} />{subject}</summary>
+          {Array.from(new Set(documents.filter(d => (d.subject || "未分类") === subject).map(d => d.dataset_id || d.dataset_name))).map(dataset => {
+            const files=documents.filter(d => (d.subject || "未分类") === subject && (d.dataset_id || d.dataset_name) === dataset);
+            return <details className="library-dataset-folder" key={dataset} open>
+              <summary><BookOpen size={16} />{files[0].dataset_name}<small>{files.length} 份文件</small></summary>
+              {files.map(d => <DocumentCard key={d.id} document={d} libraryPath={libraryPath} />)}
+            </details>;
+          })}
+        </details>
       ))}
       {!loading && !documents.length && (
         <p className="field-hint">

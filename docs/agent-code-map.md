@@ -1,6 +1,6 @@
 # 三个 Agent 的功能目录与调用链
 
-三个 Agent 的代码已按功能实际迁移到子目录。关键代码保留中文职责标签，可搜索 `【模型调用`、`【知识库调用`、`【规则处理`、`【文档工具`。
+三个 Agent 的代码已按功能实际迁移到子目录。默认生成链路现已统一接入[新 FastGPT 工作流](fastgpt-workflow.md)，以下历史适配器仍供显式注入测试使用。关键代码保留中文职责标签，可搜索 `【模型调用`、`【知识库调用`、`【规则处理`、`【文档工具`。
 
 ## 后端目录
 
@@ -37,12 +37,10 @@ flowchart TD
     Page[前端 pages 页面] --> Service[前端 services 接口]
     Service --> API[api/routes.py]
     API --> Pipeline[application/pipeline.py]
-    Pipeline --> KB[shared/knowledge：FastGPT 检索]
-    Pipeline --> Context[knowledge/context.py：已有资料节选]
-    KB --> Context
-    Context --> Prompts[llm/prompts.py：消息组装]
-    Prompts --> Model[llm/client.py：实际模型请求]
-    Model --> Rules[domain 与 shared/chemistry：规则校验]
+    Pipeline --> Prompts[llm/prompts.py：任务协议与上下文]
+    Prompts --> Model[shared/workflow/client.py：8个变量与工作流请求]
+    Model --> KB[FastGPT 工作流：知识库检索与生成]
+    KB --> Rules[本地：内容、来源、化学与修订范围校验]
     Rules --> Tools[tools：Word 或 PPTX 工具]
     Rules -->|内容错误：最多两轮修复| Model
     Tools --> Store[storage/store.py：发布版本]
@@ -53,8 +51,8 @@ flowchart TD
 
 ## 关键边界
 
-- `llm/prompts.py` 只定义提示词和消息；真正的模型网络请求在 `llm/client.py`。
-- `knowledge/context.py` 处理已有资料，不访问 FastGPT；远程检索入口是 `shared/knowledge/retrieval.py`。
+- `llm/prompts.py` 定义提示词和消息；默认实际请求在 `shared/workflow/client.py`，不再使用历史 `llm/client.py` 作为生产入口。
+- `knowledge/context.py` 处理已有资料；新生成链路由工作流检索，历史 `shared/knowledge/retrieval.py` 不再默认装配。
 - `shared/knowledge/library.py` 提供完整资料同步／原文地址，独立于任务的语义召回。
 - “工具”是应用直接调用的 Python 文件、图片和渲染函数；当前并非模型自主发起的 tool calling。
 - 提示词中的要求还要由 Python 规则验证；模型返回的来源和核验声明不能覆盖真实证据。

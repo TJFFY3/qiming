@@ -138,7 +138,7 @@ test("practice only uses its own namespace and does not restore guide session", 
       "/api/timed-practice/sessions/practice-session/generate",
     ),
   );
-  expect(calls.every((p) => p.startsWith("/api/timed-practice/"))).toBe(true);
+  expect(calls.every((p) => p.startsWith("/api/timed-practice/") || p === "/api/library/subjects" || p.startsWith("/api/library/chapters?"))).toBe(true);
   expect(localStorage.getItem("qiming-session")).toBe("guide-session");
   expect(localStorage.getItem("qiming-practice-session")).toBe(
     "practice-session",

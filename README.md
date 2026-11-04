@@ -34,14 +34,13 @@ settings = Settings(
         {'id': '知识库或文件夹ID', 'type': 'folder', 'category': 'reference', 'name': '教学资料'},
         # 独立教材库：{'id': '教材知识库ID', 'type': 'dataset', 'category': 'textbook', 'name': '教材'}
     ],
-    model_provider='fastgpt',
-    fastgpt_app_id='实际应用ID',
+    # 三个 Agent 默认统一调用新工作流，应用 ID 内置为 6ae34b10b1b18f9bb876d8ac
 )
 ```
 
-FastGPT 检索调用官方 `/api/core/dataset/searchTest`。知识库密钥必须具有相应权限，不能假定应用对话密钥拥有知识库权限。当前已接入用户提供的 FastGPT 应用，以 `appId` 调用 `/api/v1/chat/completions`，模型由工作流控制，完整结构要求作为任务输入传入。也可将 `model_provider` 改为 `openai`，填写 `model_url`、`model_key` 和 `model`，调用兼容接口（需支持 `response_format=json_object`）。凭据只在服务端使用。
+三个 Agent 默认统一调用新 FastGPT 工作流 `6ae34b10b1b18f9bb876d8ac`，通过8个全局变量传入教师要求、基础协议、知识库与操作类型。知识库正文检索和生成由工作流执行，本地负责校验、预览、导出与版本管理；不再使用旧 `model_provider` 切换生成接口。详情见[工作流变量与返回协议](docs/fastgpt-workflow.md)。
 
-可在代码中调整 `search_mode`（默认 mixedRecall）、`search_limit`（6000 tokens）、`similarity`（0.2）、`using_rerank`（默认 false）和 `timeout`（120秒）。`data_dir` 默认为项目下 `data/`。
+`datasets` 支持知识库或文件夹；文件夹先通过目录接口展开为知识库ID，不在本地执行正文检索。`repo_label_config` 配置工作流标签过滤；检索模式、相似度和重排在工作流内设置。凭据只在服务端使用，API 密钥需要新应用访问权限。`data_dir` 默认为项目下 `data/`。
 
 导学案生成与修订使用流式模型请求，独立设置 `model_read_timeout`（默认连续300秒无数据）和 `model_total_timeout`（默认单次调用600秒）；不再继承检索请求的120秒超时。可在 `backend/app/config.py` 的 `Settings(...)` 中覆盖这两个值，重启后端生效。服务返回普通JSON时仍兼容接收；超时、断流和工作流错误直接报告，不作为内容格式错误自动重试。
 
@@ -49,7 +48,7 @@ FastGPT 检索调用官方 `/api/core/dataset/searchTest`。知识库密钥必�
 
 1. 选择或输入章节、课时，设置教材和年级，在优化提示中选择范围、用时、任务数量、难度、提示详略、重点和补充要求。
 2. 可上传 TXT、MD、DOCX、文字 PDF（每文件20MB、每会话10份、提取文本每文件100000字符、PDF最多300页）。扫描 PDF 需先 OCR；上传资料只属于会话，不自动写入 FastGPT。拖拽和按钮上传均支持。
-3. 提交后从真实 FastGPT 检索。在导学案对话页点击“本课引用来源”查看摘录与来源位置。资料库及引用来源界面不显示核验标识或核对操作；资料缺口与冲突作为资料说明展示。检索无命中不会自动拿格式样例充当教材。
+3. 提交后由新 FastGPT 工作流检索并生成。在导学案对话页点击“本课引用来源”查看摘录与来源位置。资料库及引用来源界面不显示核验标识或核对操作；资料缺口与冲突作为资料说明展示。检索无命中不会自动拿格式样例充当教材。
 4. Word 使用原包模板、原生可编辑表格、化学上下标/离子域和25行笔记区。标题、正文与下载文件名不附加核验状态标记。预览只展示部分笔记横线，完整区保留在 Word。
 5. 继续对话进行修改。普通修改使用稳定块 ID 和哈希保护的局部补丁；改标题、目标或章节结构使用完整结构修订。每次产生独立版本，历史版本可查看和下载；只允许基于最新版本提交修改。
 6. 来源快照不随后续资料操作回写。资料核验不阻止生成或下载；来源、化学内容和 Word/WPS 视觉可由教师结合原资料检查。
@@ -127,15 +126,14 @@ FastGPT 检索调用官方 `/api/core/dataset/searchTest`。知识库密钥必�
 
 限时练习直接生成，不要求先核对来源或补齐来源类别，也不需要额外选择草案模式。资料缺口仅作为说明；只用原题时仍检查题干和选项能否在实际引用中定位。当前文字资料流程不生成依赖缺失图片的残缺题。
 
-限时练习默认沿用公共模型连接，但有独立任务包装和提示词。若现有FastGPT应用固定输出导学案，应配置独立限时练习应用或支持JSON输出的兼容模型。在实际 `backend/app/config.py` 的 `settings = Settings(...)` 之后可添加：
+限时练习使用统一新工作流，传入 agentCategory=限时练习，并保留独立任务与提示词。以下历史模型连接覆盖不再控制默认生成链路；工作流连接可按需覆盖。在实际 `backend/app/config.py` 的 `settings = Settings(...)` 之后可添加：
 
 ```python
 settings.timed_practice = {
-    'model_provider': 'fastgpt',
-    'fastgpt_app_id': '实际限时练习应用ID',
+    'repo_label_config': {},  # 工作流标签过滤
     'model_read_timeout': 300,  # 连续无数据的等待上限（秒）
     'model_total_timeout': 600,  # 单次模型调用的总预算（秒）
-    # 可独立覆盖fastgpt_url/fastgpt_key/datasets，或model_url/model_key/model。
+    # 可独立覆盖 fastgpt_url / fastgpt_key / datasets。
 }
 ```
 
@@ -157,10 +155,12 @@ settings.timed_practice = {
 - 数据：`data/courseware/agent.sqlite`、`data/courseware/{session}/`；浏览器键为 `qiming-courseware-session`、`qiming-courseware-draft`。
 - 资料：当前上传与知识库结果形成版本来源快照；修订继承原来源。长资料对模型使用均衡节选，报告明确说明，完整引用快照不因此截断；删除上传不改写历史版本。
 
-默认沿用服务端连接参数，课件请求和提示词独立。若需课件专用 FastGPT 应用或模型，复制 `backend/app/courseware_config.example.py` 为 `backend/app/courseware_config.py` 后填写 `overrides`，重启后端生效；凭据文件已被 Git 忽略。无需新增 PPT 生成依赖。
+课件使用统一新工作流，传入 agentCategory=互动课件，请求和提示词独立。若需覆盖工作流连接参数，复制 `backend/app/courseware_config.example.py` 为 `backend/app/courseware_config.py` 后填写 `overrides`，重启后端生效；凭据文件已被 Git 忽略。无需新增 PPT 生成依赖。
 
 课件模型使用流式响应接收，默认允许连续 300 秒无数据等待、单次生成最多 600 秒，避免长课件生成继承公共 120 秒超时。可在 `courseware_config.py` 中用 `model_read_timeout` 和 `model_total_timeout` 独立覆盖；流式连接中断、输出截断或超预算会明确失败，不会发布不完整课件。
 
 ## 核验状态展示策略（2026-10-20更新）
 
 按用户要求，所有Agent取消核验相关标识和发布门槛。核验状态不阻止生成、继续修改或下载；旧版allow_draft字段仅兼容接收，不再控制发布。历史成果预览及下载也去除状态标记，Office下载生成去标记副本，保留原始历史文件及来源记录。来源未被自动设为已核验；内容结构、原题真实性、文件大小与并发保护等正常校验保留。
+
+三个 Agent 统一使用公共 `settings.datasets` 知识库范围，知识库页面共用 `/api/library` 及其同步缓存。课件和限时练习旧配置中的 `datasets` 覆盖不再生效；上传资料和历史任务仍按各自会话保存。

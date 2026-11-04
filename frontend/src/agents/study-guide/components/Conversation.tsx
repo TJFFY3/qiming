@@ -29,6 +29,7 @@ export default function Conversation({
   return (
     <>
       <ConversationView
+              messages={session.messages}
         request={formatLessonPrompt(
           lastRequest?.content || "请生成一份导学案。",
           session.settings,

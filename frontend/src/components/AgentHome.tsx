@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+import { api } from "../agents/study-guide/services/api";
+import { subjectLessons } from "../subjects";
+import { useWorkbench } from "./AgentWorkbench";
 import {
   FileText,
   Presentation,
@@ -27,6 +31,8 @@ export function AgentHomeHeader({
   onHistory: () => void;
   historyLabel?: string;
 }) {
+  const workbench = useWorkbench();
+  if (workbench) return null;
   return (
     <header className="site-header">
       <button className="brand" onClick={onNew} aria-label="返回首页">
@@ -62,7 +68,7 @@ export function AgentHero({
         让每一节课，都有好设计
       </div>
       <h1>
-        <span>启鸣 AI</span>，帮你备课
+        <span>Fast AI</span>，帮你备课
       </h1>
       <div className="product-tabs" role="tablist" aria-label="备课产物">
         {agents.map(({ id, name, Icon }) => (
@@ -81,13 +87,14 @@ export function AgentHero({
     </section>
   );
 }
-export function LessonToolbar<T extends { edition: string; grade: string }>({
+export function LessonToolbar<T extends { edition?: string; grade?: string; subject?: string; options?: object }>({
   settings,
   onSettings,
   onResources,
   busy = false,
   prefix = "",
   uploadCount = 0,
+  inline = false,
 }: {
   settings: T;
   onSettings: (value: T) => void;
@@ -95,31 +102,35 @@ export function LessonToolbar<T extends { edition: string; grade: string }>({
   busy?: boolean;
   prefix?: string;
   uploadCount?: number;
+  inline?: boolean;
 }) {
+  const workbench = useWorkbench();
+  const [subjects, setSubjects] = useState(Object.keys(subjectLessons));
+  useEffect(() => {
+    let active = true;
+    api<{subjects: string[]}>("/library/subjects").then(data => {
+      const available = data.subjects?.filter(subject => subjectLessons[subject]);
+      if (active && available?.length) setSubjects(available);
+    }).catch(() => { /* 目录暂不可用时仍可编辑；生成端会校验学科与知识库映射。 */ });
+    return () => { active = false; };
+  }, []);
   return (
-    <div className="resource-toolbar">
-      <div>
-        <button className="text-button library-button" onClick={onResources}>
+    <div className={inline ? "composer-lesson-fields" : "resource-toolbar"}>
+      {!inline && <div>
+        {!workbench && <button className="text-button library-button" onClick={onResources}>
           <Library size={20} />
           资料库
-        </button>
-        <button className="text-button" onClick={onResources}>
+        </button>}
+        {!workbench && <button className="text-button" onClick={onResources}>
           <Paperclip size={20} />
           上传资源{uploadCount ? `（${uploadCount}）` : ""}
-        </button>
-      </div>
+        </button>}
+      </div>}
       <div className="lesson-context">
-        <input
-          aria-label={prefix + "教材版本"}
-          maxLength={200}
-          value={settings.edition}
-          disabled={busy}
-          onChange={(e) => onSettings({ ...settings, edition: e.target.value })}
-        />
-        <span>·</span>
+
         <select
           aria-label={prefix + "年级"}
-          value={settings.grade}
+          value={settings.grade || "高一"}
           disabled={busy}
           onChange={(e) => onSettings({ ...settings, grade: e.target.value })}
         >
@@ -127,6 +138,12 @@ export function LessonToolbar<T extends { edition: string; grade: string }>({
           <option>高二</option>
           <option>高三</option>
         </select>
+        <select aria-label={prefix + "学科"} value={settings.subject || "化学"} disabled={busy}
+          onChange={e => onSettings({...settings, subject:e.target.value, ...subjectLessons[e.target.value], options:{...settings.options,focus:["按本课安排（默认）"],extra:""}})}>
+          {Object.keys(subjectLessons).filter(subject => subjects.includes(subject) || subject === (settings.subject || "化学")).map(subject => <option key={subject}>{subject}</option>)}
+        </select>
+
+
       </div>
     </div>
   );

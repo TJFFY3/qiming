@@ -8,7 +8,6 @@ export default function Resources(
   return (
     <SharedResources
       {...props}
-      libraryPath="/courseware"
       productName="互动课件"
     />
   );

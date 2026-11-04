@@ -1,4 +1,5 @@
 export type LessonContext = {
+  subject?: string;
   edition: string;
   grade: string;
   chapter: string;
@@ -14,11 +15,11 @@ export function assembleLessonPrompt(
   const instruction = prompt
     .replace(new RegExp(optimizationPattern.source, "g"), "")
     .replace(
-      /^学科：化学\n教材版本：[^\n]*\n年级：[^\n]*\n章节 \/ 知识点：[^\n]*\n课时：[^\n]*(?:\n|$)/gm,
+      /^学科：[^\n]*\n教材版本：[^\n]*\n年级：[^\n]*\n章节 \/ 知识点：[^\n]*\n课时：[^\n]*(?:\n|$)/gm,
       "",
     )
     .trim();
-  const context = `学科：化学\n教材版本：${settings.edition}\n年级：${settings.grade}\n章节 / 知识点：${settings.chapter}\n课时：${settings.period}`;
+  const context = `学科：${settings.subject || "化学"}\n教材版本：${settings.edition}\n年级：${settings.grade}\n章节 / 知识点：${settings.chapter}\n课时：${settings.period}`;
   return [instruction, [context, block].filter(Boolean).join("\n")]
     .filter(Boolean)
     .join("\n\n");

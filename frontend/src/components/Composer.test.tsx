@@ -9,8 +9,9 @@ import {
 import { afterEach, expect, test, vi } from "vitest";
 import Composer from "./Composer";
 import { defaultSettings } from "../agents/study-guide/services/api";
-afterEach(cleanup);
-test("chapter uses a native select and period offers exactly the first two lessons", () => {
+afterEach(() => {cleanup();vi.unstubAllGlobals();});
+test("chapter uses a native select and period offers exactly the first two lessons", async () => {
+  vi.stubGlobal("fetch", vi.fn(async input => String(input).includes("/library/chapters") ? Response.json({chapters:["第一章 物质及其变化","第二章 海水中的重要元素"]}) : Response.json({subjects:["化学"]})));
   const change = vi.fn();
   render(
     <Composer
@@ -33,16 +34,16 @@ test("chapter uses a native select and period offers exactly the first two lesso
   );
   const chapter = screen.getByRole("combobox", { name: "章节 / 知识点" });
   expect(
-    within(chapter).getByRole("option", { name: "第一节 物质的分类及转化" }),
+    await within(chapter).findByRole("option", { name: "第一章 物质及其变化" }),
   ).toBeTruthy();
   expect(
     within(period)
       .getAllByRole("option")
       .map((option) => option.textContent),
   ).toEqual(["第一课时", "第二课时"]);
-  fireEvent.change(chapter, { target: { value: "第一节 物质的分类及转化" } });
+  fireEvent.change(chapter, { target: { value: "第二章 海水中的重要元素" } });
   expect(change).toHaveBeenCalledWith(
-    expect.objectContaining({ chapter: "第一节 物质的分类及转化" }),
+    expect.objectContaining({ chapter: "第二章 海水中的重要元素" }),
   );
 });
 

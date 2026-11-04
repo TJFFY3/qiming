@@ -14,6 +14,8 @@ def practice_settings(base):
             "fastgpt_url",
             "fastgpt_key",
             "fastgpt_app_id",
+            "workflow_app_id",
+            "repo_label_config",
             "datasets",
             "timeout",
             "model_read_timeout",
@@ -21,5 +23,7 @@ def practice_settings(base):
         ):
             raise ValueError("未知限时练习配置字段：" + key)
         setattr(config, key, value)
+    # 三个 Agent 共用知识库，忽略历史独立配置中的 datasets。
+    config.datasets = copy.deepcopy(base.datasets)
     config.data_dir = base.data_dir / "timed-practice"
     return config

@@ -1,5 +1,7 @@
 """【接口层·导学案】接收会话、上传、生成与修订请求，交给流程执行并提供预览下载。"""
 
+from backend.app.shared.workflow.binding import missing_workflow_settings
+
 import re
 import hashlib
 import json
@@ -62,6 +64,16 @@ def make_router(settings, store, pipeline):
         json.dumps([settings.fastgpt_url, settings.datasets], sort_keys=True).encode()
     ).hexdigest()
 
+    @router.get("/library/subjects")
+    def library_subjects():
+        from backend.app.shared.knowledge.subjects import dataset_subject
+        datasets = library.datasets()
+        return {"subjects": list(dict.fromkeys(dataset_subject(d) for d in datasets if dataset_subject(d)))}
+
+    @router.get("/library/chapters")
+    def library_chapters(subject: str = '化学'):
+        return {"subject": subject, "chapters": library.chapters(subject)}
+
     @router.get("/library")
     def full_library():
         return clean_public(store.get_library(library_id))
@@ -83,8 +95,8 @@ def make_router(settings, store, pipeline):
     def health():
         return {
             "status": "ok",
-            "ready": not settings.missing(),
-            "missing": settings.missing(),
+            "ready": not missing_workflow_settings(settings),
+            "missing": missing_workflow_settings(settings),
         }
 
     @router.get("/sessions")

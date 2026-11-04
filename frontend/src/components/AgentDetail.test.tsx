@@ -125,7 +125,7 @@ function fixture(
   return {
     id: "detail",
     settings: agent.settings(),
-    messages: [{ role: "user", content: "设计本课内容" }],
+    messages: [{ role: "user", content: "设计本课内容" }, { role: "assistant", content: "初版已完成" }, { role: "user", content: "调整提示：补充实验探究" }],
     resources: [],
     sources: [],
     versions: withVersions ? [makeVersion("v1"), makeVersion("v2")] : [],
@@ -149,7 +149,7 @@ async function show(
     ),
   );
   render(<App />);
-  await screen.findByRole("button", { name: "返回备课" });
+  await screen.findByRole("heading", {level:1,name:new RegExp(agent.product)});
   await act(async () => {});
 }
 
@@ -166,8 +166,12 @@ test.each(agents)(
     expect(
       screen.queryByRole("button", { name: "启鸣 教学工作台" }),
     ).toBeNull();
-    expect(screen.getByText("对话式生成")).toBeTruthy();
+    expect(screen.queryByText("对话式生成")).toBeNull();
+    for (const text of ["设计本课内容", "初版已完成", "调整提示：补充实验探究"]) {
+      expect(screen.getByText(text).closest(".workbench-main")).toBeTruthy();
+    }
     const progress = screen.getByRole("status");
+    expect(progress.closest(".workbench-main")).toBeTruthy();
     expect(within(progress).getByText("生成未完成")).toBeTruthy();
     expect(within(progress).getByText("未完成")).toBeTruthy();
     expect(within(progress).getByRole("button", { name: "重试" })).toBeTruthy();
@@ -211,7 +215,7 @@ test.each(agents.slice(1))(
   "$product can leave its busy details without losing the active session",
   async (agent) => {
     await show(agent, "running");
-    fireEvent.click(screen.getByRole("button", { name: "返回备课" }));
+    fireEvent.click(screen.getByRole("button", { name: "启鸣 AI 首页" }));
     expect(screen.getByRole("tab", { name: "导学案" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "查看任务" })).toBeTruthy();
     expect(localStorage.getItem(agent.key)).toBe("detail");
@@ -229,7 +233,7 @@ test.each(agents)(
   "$product completed details return to a fresh entry without rebinding the finished session",
   async (agent) => {
     await show(agent, "completed", true);
-    fireEvent.click(screen.getByRole("button", { name: "返回备课" }));
+    fireEvent.click(screen.getByRole("button", { name: "启鸣 AI 首页" }));
     expect(localStorage.getItem(agent.key)).toBeNull();
     const label =
       agent.id === "guide"

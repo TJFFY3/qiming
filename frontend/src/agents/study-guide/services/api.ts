@@ -9,6 +9,7 @@ export type Options = {
   extra: string;
 };
 export type Settings = {
+  subject?: string;
   chapter: string;
   period: string;
   edition: string;
@@ -25,6 +26,7 @@ export const defaultOptions = (): Options => ({
   extra: "",
 });
 export const defaultSettings = (): Settings => ({
+  subject: "化学",
   chapter: "第三节 氧化还原反应",
   period: "第一课时",
   edition: "人教版 必修第一册",
