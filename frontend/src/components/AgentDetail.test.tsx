@@ -164,7 +164,7 @@ test.each(agents)(
       }),
     ).toBeTruthy();
     expect(
-      screen.queryByRole("button", { name: "启鸣 教学工作台" }),
+      screen.queryByRole("button", { name: "Fast 教学工作台" }),
     ).toBeNull();
     expect(screen.queryByText("对话式生成")).toBeNull();
     for (const text of ["设计本课内容", "初版已完成", "调整提示：补充实验探究"]) {
