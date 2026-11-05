@@ -27,7 +27,7 @@ export const defaultOptions = (): Options => ({
 });
 export const defaultSettings = (): Settings => ({
   subject: "化学",
-  chapter: "第三节 氧化还原反应",
+  chapter: "",
   period: "第一课时",
   edition: "人教版 必修第一册",
   grade: "高一",

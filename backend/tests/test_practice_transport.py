@@ -172,7 +172,7 @@ def test_pipeline_records_stream_progress_context_size_and_failed_stage(tmp_path
     from backend.app.timed_practice.domain.models import LessonSettings
 
     store = PracticeStore(tmp_path / "practice.sqlite")
-    lesson = store.create_session(LessonSettings().model_dump())
+    lesson = store.create_session(LessonSettings(chapter="第三节 氧化还原反应").model_dump())
     captured = []
 
     class Model:

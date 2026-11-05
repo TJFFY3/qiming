@@ -20,8 +20,9 @@
 | `datasetIds` | 数组 | 选择器对象数组，例如 `[{"datasetId":"知识库ID"}]`；文件夹先展开，不本地检索正文 |
 | `chapters` | 字符串 | 章节数组的 JSON，例如 `["钠及其化合物"]` |
 | `repoLabelConfig` | 字符串 | 标签过滤对象的 JSON，默认 `{}` |
-| `subject` | 字符串 | `化学` |
-| `dynamicPromot` | 字符串 | 知识库检索文本：本课教材、年级、章节、课时与教师要求中的教学内容／知识点；不包含 Schema、来源全文、历史成品或修复反馈 |
+| `subject` | 字符串 | 当前选择的学科，旧会话默认 `化学` |
+| `repoSearchInfo` | 字符串 | 知识库检索文本：本课教材、年级、章节、课时与教师要求中的教学内容／知识点；不包含 Schema、来源全文、历史成品或修复反馈 |
+| `dynamicPromot` | 字符串 | 所选学科的动态提示词；化学传“化学表达”七条要求，其他学科尚未配置时传空字符串 |
 | `agentCategory` | 字符串 | `导学案`、`互动课件`、`限时练习` |
 | `basePromot` | 字符串 | 本次系统协议，包括生成／修订／定点修复的格式约束；Schema 也随任务消息传入 |
 | `operation` | 字符串 | 首次生成 `初始化`；修订 `微调`。自动内容修复保留原任务操作，并传递修复协议 |
@@ -48,6 +49,8 @@
 
 网络故障、权限错误、工作流执行错误、超时和断流直接失败；完整响应的 JSON／内容错误才进入既有两轮修复。流式空增量允许 `content: null`，不会把它拼入正文。
 
+知识库返回 `{"errorInfo":"其他学科即将开放，敬请期待。"}` 等非空错误说明时，三个 Agent 直接将该说明保存为任务失败原因，不触发内容自动修复，也不发布新版本。普通 JSON、流式正文及响应节点元数据均支持此错误结构；来源摘录中的示例文本不作为工作流错误执行。
+
 ## 配置
 
 沿用实际 `backend/app/config.py` 中的 `fastgpt_url`、`fastgpt_key`、`datasets` 和超时参数。真实配置无需覆盖或复制。
@@ -66,6 +69,8 @@ settings.repo_label_config = {}  # 按需填写 tags 等过滤条件
 ## 代码入口
 
 - `backend/app/shared/workflow/client.py`：变量、工作流 HTTP/SSE、响应 JSON 与引用元数据。
+- `backend/app/shared/workflow/retrieval_query.py`：`repoSearchInfo` 的检索内容提取规则。
+- `backend/app/shared/workflow/subject_prompts.py`：`dynamicPromot` 的学科提示词配置。
 - `backend/app/shared/workflow/datasets.py`：知识库文件夹目录展开。
 - `backend/app/shared/workflow/binding.py`：将单次任务绑定到工作流调用，合并引用并适配原有内容错误类型。
 - `backend/app/main.py`、练习 `api/routes.py`：默认装配新工作流客户端。
@@ -91,6 +96,12 @@ settings.repo_label_config = {}  # 按需填写 tags 等过滤条件
 
 真实验收覆盖初始化生成、现有Schema校验、可信引用保存和文档结构检查。修订及原图别名的完整链路通过MockTransport集成测试验证；本次未做Word/WPS/PowerPoint人工视觉验收。正式服务已在无活动任务时重启，三个健康接口均返回ready=true。
 
-`dynamicPromot` 由共享检索规则提炼，三个 Agent 共用。完整教师要求、输出协议、有效练习要求、上传证据、修订基线和修复反馈通过 `messages` 传给生成节点；`basePromot` 仍传系统规则。检索词提炼不额外调用模型。
+`repoSearchInfo` 由共享检索规则提炼，三个 Agent 共用，提取规则沿用原实现，不额外调用模型。`dynamicPromot` 从共享学科配置按 `subject` 读取，与检索词独立，初始化、修订和自动内容修复均传递。完整教师要求、输出协议、有效练习要求、上传证据、修订基线和修复反馈继续通过 `messages` 传给生成节点；`basePromot` 仍传系统规则。
+
+工作流全局变量需声明 `repoSearchInfo`（字符串），知识库检索节点的检索内容改为引用 `repoSearchInfo`；生成节点引用 `dynamicPromot` 作为学科表达要求。`dynamicPromot` 不再用于检索输入。
 
 学科路由：三个 Agent 会话设置包含 `subject`（旧会话默认化学）。服务端保留目录中的学科文件夹标签，解析为真实知识库 ID 后，仅把所选学科下的知识库传给 `datasetIds`，同时传递 `subject`。未找到匹配学科时失败，不扩大到其他学科。无学科标签的旧配置仅兼容默认化学。知识库界面按学科、知识库、文件分组；更换学科会开启新任务。
+
+章节选项：已同步时，`/api/library/chapters` 从与右侧资料浏览相同的目录快照提取章节；尚无快照时才读取远端文件标题。前端不预设固定章节，目录未确认或读取失败时禁止新建生成，失败可重试。知识库同步完成后，三个 Agent 自动刷新章节；历史成品及其修订上下文保持原课题。
+
+三个 Agent 的新建会话和设置更新接口均要求显式传入非空 `chapter`。后端不再提供固定化学章节默认值；缺失时返回 HTTP 422，不自动选择课题或把旧示例写入本次任务。

@@ -51,6 +51,7 @@ export default function Resources({
   return (
     <Modal
       placement="sidebar"
+      hideHeader={!snapshot && !recall}
       title={
         snapshot
           ? "当前版本 · 来源快照"
@@ -62,11 +63,7 @@ export default function Resources({
       className="resource-modal"
     >
       <div className="modal-scroll">
-        <p className="panel-description">
-          {snapshot || recall
-            ? `此处仅保留本次${productName}生成使用的命中片段。`
-            : `浏览 FastGPT 知识库全部资料与片段，包括 PPT；${productName}生成时按需求检索。`}
-        </p>
+        {(snapshot || recall) && <p className="panel-description">此处仅保留本次{productName}生成使用的命中片段。</p>}
         {!snapshot && !recall && <KnowledgeLibrary libraryPath={libraryPath} />}
         {notes.length > 0 && (
           <div className="source-issues">

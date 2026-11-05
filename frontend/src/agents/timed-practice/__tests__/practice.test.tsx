@@ -97,6 +97,7 @@ test("practice only uses its own namespace and does not restore guide session", 
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       calls.push(path);
+      if (path.includes("/library/chapters")) return Response.json({chapters:["第一章 物质及其变化"]});
       if (path.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
       if (path.endsWith("/sessions") && init?.method === "POST")

@@ -11,7 +11,7 @@ const agents = [
   {
     name: "导学案",
     format: (prompt: string, lesson: Partial<LessonContext> = {}) =>
-      guidePrompt(prompt, { ...guideSettings(), ...lesson }),
+      guidePrompt(prompt, { ...guideSettings(), chapter:"第三节 氧化还原反应", ...lesson }),
     marker: "【优化提示】",
     end: "【优化提示结束】",
     option: "自学用时",
@@ -19,7 +19,7 @@ const agents = [
   {
     name: "互动课件",
     format: (prompt: string, lesson: Partial<LessonContext> = {}) =>
-      coursewarePrompt(prompt, { ...coursewareSettings(), ...lesson }),
+      coursewarePrompt(prompt, { ...coursewareSettings(), chapter:"第三节 氧化还原反应", ...lesson }),
     marker: "【课件优化提示】",
     end: "【课件优化结束】",
     option: "课堂时长",
@@ -27,7 +27,7 @@ const agents = [
   {
     name: "限时练习",
     format: (prompt: string, lesson: Partial<LessonContext> = {}) =>
-      practicePrompt(prompt, { ...practiceSettings(), ...lesson }),
+      practicePrompt(prompt, { ...practiceSettings(), chapter:"第三节 氧化还原反应", ...lesson }),
     marker: "【限时练习优化设置】",
     end: "【限时练习优化设置结束】",
     option: "用时",

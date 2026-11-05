@@ -1,9 +1,30 @@
 """【知识库调用·共享】同步完整资料目录、读取文档片段及原文地址，供资料浏览使用。"""
 
 import hashlib
+import re
 from urllib.parse import urlsplit
 import httpx
 from .subjects import dataset_subject
+
+
+def _chapter_title(title, subject):
+    title = re.sub(r'\.(?:pdf|docx?|pptx?|txt|md)$', '', title, flags=re.I).strip()
+    marker = re.search(r'第[一二三四五六七八九十百0-9]+(?:章|节|单元|课)|Unit\s*\d+', title, flags=re.I)
+    return title[marker.start():] if marker else re.sub(r'^' + re.escape(subject) + r'[\s·—_：:]*', '', title)
+
+
+def chapters_from_documents(documents, subject):
+    """【目录规则】章节选项与资料浏览共用快照，按学科过滤并合并同名文件。"""
+    from .subjects import SUBJECTS
+    if subject not in SUBJECTS:
+        raise ValueError('不支持的学科')
+    annotated = [(document, dataset_subject({
+        'subject': document.get('subject'), 'name': document.get('dataset_name', ''),
+    })) for document in documents]
+    legacy = not any(label for _, label in annotated) and subject == '化学'
+    titles = [_chapter_title(document.get('title', ''), subject)
+              for document, label in annotated if label == subject or legacy]
+    return list(dict.fromkeys(title for title in titles if title))
 
 
 class KnowledgeLibrary:
@@ -53,7 +74,6 @@ class KnowledgeLibrary:
 
     def chapters(self, subject):
         """【目录调用】只读当前学科的知识库文件标题，不下载原文或扫描片段。"""
-        import re
         from .subjects import SUBJECTS, select_subject_datasets
         if subject not in SUBJECTS:
             raise ValueError('不支持的学科')
@@ -71,9 +91,7 @@ class KnowledgeLibrary:
                     if item.get('type') == 'folder':
                         scan(dataset_id, item['_id'])
                         continue
-                    title = re.sub(r'\.(?:pdf|docx?|pptx?|txt|md)$', '', item.get('name', ''), flags=re.I).strip()
-                    marker = re.search(r'第[一二三四五六七八九十百0-9]+(?:章|节|单元|课)|Unit\s*\d+', title, flags=re.I)
-                    title = title[marker.start():] if marker else re.sub(r'^' + re.escape(subject) + r'[\s·—_：:]*', '', title)
+                    title = _chapter_title(item.get('name', ''), subject)
                     if title and title not in chapters:
                         chapters.append(title)
             for dataset in datasets:

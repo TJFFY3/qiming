@@ -64,6 +64,7 @@ def settings():
     from backend.app.timed_practice.domain.models import LessonSettings
 
     return LessonSettings(
+        chapter="第三节 氧化还原反应",
         options={
             "duration": "20 分钟",
             "score": "50 分",
@@ -132,14 +133,14 @@ def test_requirements_explicit_body_overrides_options_and_default_profile():
         3,
         2,
     )
-    d = resolve_requirements(LessonSettings().model_dump(), "")
+    d = resolve_requirements(LessonSettings(chapter="第三节 氧化还原反应").model_dump(), "")
     assert (
         d["duration"],
         d["total_score"],
         d["choice_count"],
         d["optional_count"],
     ) == (35, 100, 14, 2)
-    inherited = resolve_requirements(LessonSettings().model_dump(), "", paper())
+    inherited = resolve_requirements(LessonSettings(chapter="第三节 氧化还原反应").model_dump(), "", paper())
     assert (inherited["duration"], inherited["total_score"]) == (20, 50)
 
 
@@ -163,7 +164,7 @@ def app_for(tmp_path, replies=None):
 def test_independent_namespace_unverified_generation_download_and_revision(tmp_path):
     app = app_for(tmp_path, [paper(), paper("修改后的练习")])
     with TestClient(app) as client:
-        guide = client.post("/api/sessions", json={}).json()["id"]
+        guide = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         s = client.post(PREFIX + "/sessions", json=settings()).json()
         sid = s["id"]
         assert client.get(PREFIX + "/sessions/" + guide).status_code == 404
@@ -233,7 +234,7 @@ def test_upload_delete_atomic_reservation_and_restart(tmp_path):
     assert store.recover_jobs() == 1
     assert store.get_job(j["id"])["status"] == "failed"
     with TestClient(app_for(tmp_path)) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         uploaded = client.post(
             f"{PREFIX}/sessions/{sid}/resources",
             files={"file": ("教材.txt", "原始资料".encode())},
@@ -282,7 +283,7 @@ def test_default_time_profile_and_missing_optional_options_rejected():
     d["optional"] = [dict(d["written"][0], stem=f"选做{i}", score=0) for i in range(2)]
     with pytest.raises(ValueError, match="30"):
         validate_content(
-            d, resolve_requirements(LessonSettings().model_dump(), ""), [source()]
+            d, resolve_requirements(LessonSettings(chapter="第三节 氧化还原反应").model_dump(), ""), [source()]
         )
 
 
@@ -306,7 +307,7 @@ def test_reviewed_requirements_survive_revision_and_editable_block_is_authoritat
     from backend.app.timed_practice.domain.requirements import resolve_requirements
     from backend.app.timed_practice.domain.models import LessonSettings
 
-    defaults = LessonSettings().model_dump()
+    defaults = LessonSettings(chapter="第三节 氧化还原反应").model_dump()
     original = resolve_requirements(
         defaults, "20分钟，满分50分，5道选择题和2道解答题，只用原题"
     )

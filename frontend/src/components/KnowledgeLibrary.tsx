@@ -1,15 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   BookOpen,
   ChevronDown,
   FileText,
-  Folder,
   LoaderCircle,
   Presentation,
   RefreshCw,
 } from "lucide-react";
 import { api, post, type Source } from "../agents/study-guide/services/api";
+import { useWorkbench } from "./AgentWorkbench";
+import { subjectLessons } from "../subjects";
 import { SourceCard } from "./Resources";
+import { LIBRARY_UPDATED_EVENT } from "../knowledgeLibrary";
+const subjects = Object.keys(subjectLessons);
+
 type Document = {
   id: string;
   title: string;
@@ -24,22 +28,38 @@ type Library = {
   chunk_count: number;
   synced_at: string | null;
 };
+function validLibrary(value: Library) {
+  if (!Array.isArray(value.documents)) throw new Error("知识库目录返回结构无效，请重新同步");
+  return value;
+}
 export default function KnowledgeLibrary({
   libraryPath = "",
 }: {
   libraryPath?: string;
 }) {
+  const target = useWorkbench()?.libraryTarget;
+  const libraryRef = useRef<HTMLElement>(null);
+  const tabId = useId();
+  const [selectedSubject, setSelectedSubject] = useState(target?.subject || "化学");
   const [data, setData] = useState<Library>(),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [query, setQuery] = useState("");
   useEffect(() => {
+    if (!target) return;
+    setSelectedSubject(target.subject);
+    setQuery("");
+    if (!target.chapter) libraryRef.current?.scrollIntoView?.({block:"start",behavior:"smooth"});
+  }, [target]);
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        let value = await api<Library>(libraryPath + "/library");
-        if (!value.synced_at || value.documents.some(d => d.dataset_id && d.subject === undefined))
-          value = await post<Library>(libraryPath + "/library/sync", {});
+        let value = validLibrary(await api<Library>(libraryPath + "/library"));
+        if (!value.synced_at || value.documents.some(d => d.dataset_id && d.subject === undefined)) {
+          value = validLibrary(await post<Library>(libraryPath + "/library/sync", {}));
+          if (!libraryPath) window.dispatchEvent(new Event(LIBRARY_UPDATED_EVENT));
+        }
         if (!cancelled) setData(value);
       } catch (e) {
         if (!cancelled) setError((e as Error).message);
@@ -55,7 +75,8 @@ export default function KnowledgeLibrary({
     setLoading(true);
     setError("");
     try {
-      setData(await post<Library>(libraryPath + "/library/sync", {}));
+      setData(validLibrary(await post<Library>(libraryPath + "/library/sync", {})));
+      if (!libraryPath) window.dispatchEvent(new Event(LIBRARY_UPDATED_EVENT));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -64,12 +85,16 @@ export default function KnowledgeLibrary({
   };
   const documents =
     data?.documents.filter((d) =>
-      `${d.subject || ""} ${d.title} ${d.dataset_name}`
+      (!d.subject || d.subject === selectedSubject) && `${d.subject || ""} ${d.title} ${d.dataset_name}`
         .toLowerCase()
         .includes(query.toLowerCase()),
     ) || [];
+  const normalizeTitle = (value: string) => value.replace(/\.(pdf|docx?|pptx?|txt|md)$/i, "").replace(/[\s·—_：:]/g, "");
+  const targetTitle = target?.chapter ? normalizeTitle(target.chapter) : "";
+  const matchedId = targetTitle && target?.subject === selectedSubject
+    ? documents.find(file => normalizeTitle(file.title).includes(targetTitle))?.id : undefined;
   return (
-    <section className="knowledge-library" aria-label="知识库全量资料">
+    <section ref={libraryRef} className="knowledge-library" aria-label="知识库全量资料">
       <div className="source-list-header">
         <h3>
           <BookOpen size={18} /> 知识库全部资料
@@ -86,6 +111,19 @@ export default function KnowledgeLibrary({
           )}{" "}
           {loading ? "正在同步全量资料…" : "同步知识库"}
         </button>
+      </div>
+      <div className="library-subject-tabs" role="tablist" aria-label="知识库学科">
+        {subjects.map((subject, index) => <button key={subject} id={`${tabId}-tab-${index}`} role="tab"
+          aria-selected={selectedSubject === subject} aria-controls={`${tabId}-panel`}
+          tabIndex={selectedSubject === subject ? 0 : -1}
+          onClick={() => setSelectedSubject(subject)}
+          onKeyDown={event => {
+            const next = event.key === "Home" ? 0 : event.key === "End" ? subjects.length - 1 : event.key === "ArrowRight" ? (index+1)%subjects.length : event.key === "ArrowLeft" ? (index+subjects.length-1)%subjects.length : -1;
+            if (next < 0) return;
+            event.preventDefault();
+            setSelectedSubject(subjects[next]);
+            event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+          }}>{subject}</button>)}
       </div>
       {data && (
         <p className="field-hint">
@@ -107,37 +145,42 @@ export default function KnowledgeLibrary({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      {Array.from(new Set(documents.map(d => d.subject || "未分类"))).map(subject => (
-        <details className="library-subject-folder" key={subject} open>
-          <summary><Folder size={18} />{subject}</summary>
-          {Array.from(new Set(documents.filter(d => (d.subject || "未分类") === subject).map(d => d.dataset_id || d.dataset_name))).map(dataset => {
-            const files=documents.filter(d => (d.subject || "未分类") === subject && (d.dataset_id || d.dataset_name) === dataset);
-            return <details className="library-dataset-folder" key={dataset} open>
-              <summary><BookOpen size={16} />{files[0].dataset_name}<small>{files.length} 份文件</small></summary>
-              {files.map(d => <DocumentCard key={d.id} document={d} libraryPath={libraryPath} />)}
-            </details>;
-          })}
-        </details>
-      ))}
+      <div role="tabpanel" id={`${tabId}-panel`} aria-labelledby={`${tabId}-tab-${subjects.indexOf(selectedSubject)}`}>
+        {Array.from(new Set(documents.map(d => d.dataset_id || d.dataset_name))).map(dataset => {
+          const files=documents.filter(d => (d.dataset_id || d.dataset_name) === dataset);
+          return <details className="library-dataset-folder" key={`${dataset}-${target?.subject === selectedSubject ? target.requestId : ""}`} open>
+            <summary><BookOpen size={16} />{files[0].dataset_name}<small>{files[0].subject ? "" : "未分类 · "}{files.length} 份文件</small></summary>
+            {files.map(d => <DocumentCard key={d.id} document={d} libraryPath={libraryPath} focusRequest={d.id === matchedId ? target?.requestId : undefined} />)}
+          </details>;
+        })}
       {!loading && !documents.length && (
         <p className="field-hint">
-          {query ? "没有匹配的资料。" : "暂无知识库资料，请同步知识库。"}
+          {query ? "没有匹配的资料。" : `${selectedSubject}暂无知识库资料。`}
         </p>
       )}
+      </div>
     </section>
   );
 }
 function DocumentCard({
   document: d,
   libraryPath,
+  focusRequest,
 }: {
+  focusRequest?: number;
   document: Document;
   libraryPath: string;
 }) {
+  const fileRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusRequest === undefined) return;
+    setOpen(true);
+    fileRef.current?.scrollIntoView?.({block:"nearest",behavior:"smooth"});
+  }, [focusRequest]);
   const [open, setOpen] = useState(false),
     [limit, setLimit] = useState(20);
   return (
-    <div className="source-card library-document">
+    <div ref={fileRef} className={"source-card library-document" + (focusRequest !== undefined ? " library-document-focused" : "")}>
       <button
         className="source-title"
         aria-expanded={open}

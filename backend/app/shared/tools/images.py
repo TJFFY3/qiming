@@ -131,7 +131,8 @@ def _redirect_target(current_url: str, location: str, allowed_origin: str) -> st
         raise ImageAssetError('知识库原图重定向地址不受信任。') from None
 
 
-def _download(client: httpx.Client, url: str, allowed_origin: str) -> bytes:
+def _download_bytes(client: httpx.Client, url: str, allowed_origin: str) -> bytes:
+    """匿名、限大小下载；格式校验由浏览器预览或导出各自负责。"""
     try:
         for hop in range(4):
             # Each request is anonymous, including redirects back to the same host.
@@ -149,10 +150,13 @@ def _download(client: httpx.Client, url: str, allowed_origin: str) -> bytes:
                     if len(content) + len(chunk) > _MAX_BYTES:
                         raise ImageAssetError('知识库图片超过 8 MiB 限制。')
                     content.extend(chunk)
-            blob = bytes(content)
-            return _normalize_image(blob)
+            return bytes(content)
     except httpx.HTTPError:
         raise ImageAssetError('知识库原图暂时无法获取，请稍后重试。') from None
+
+
+def _download(client: httpx.Client, url: str, allowed_origin: str) -> bytes:
+    return _normalize_image(_download_bytes(client, url, allowed_origin))
 
 
 def prepare_image_assets(blocks, sources, cache_dir, transport=None, allowed_origin=None) -> dict[str, Path]:

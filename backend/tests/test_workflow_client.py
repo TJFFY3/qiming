@@ -40,16 +40,16 @@ def test_variables_and_plain_response_keep_old_content_shape(category):
         assert body['detail'] is True
         assert 'chatId' not in body
         variables=body['variables']
-        assert set(variables)=={'datasetIds','chapters','repoLabelConfig','subject','dynamicPromot','agentCategory','basePromot','operation'}
+        assert set(variables)=={'datasetIds','chapters','repoLabelConfig','subject','repoSearchInfo','dynamicPromot','agentCategory','basePromot','operation'}
         assert variables['datasetIds']==[{'datasetId':'dataset'}]
         assert json.loads(variables['chapters'])==['钠及其化合物']
         assert json.loads(variables['repoLabelConfig'])=={}
         assert variables['subject']=='化学' and variables['operation']=='初始化'
         assert variables['agentCategory']==category
         assert 'Schema' in variables['basePromot']
-        assert '钠及其化合物' in variables['dynamicPromot']
-        assert '请生成本课内容' not in variables['dynamicPromot']
-        assert 'current_outline' not in variables['dynamicPromot']
+        assert '钠及其化合物' in variables['repoSearchInfo']
+        assert '请生成本课内容' not in variables['repoSearchInfo']
+        assert 'current_outline' not in variables['repoSearchInfo']
         assert 'current_outline' in body['messages'][-1]['content']
         return httpx.Response(200,json={'choices':[{'message':{'content':'{"outline": {}}'},'finish_reason':'stop'}]})
     arguments=task() | {'agent_category':category}
@@ -102,12 +102,47 @@ def test_bad_json_preserves_response_for_bounded_repair():
     assert error.value.response_text=='{"broken":'
 
 
+@pytest.mark.parametrize('mode', ['body', 'message', 'stream_message', 'stream_event', 'metadata_json', 'metadata_stream', 'stream_error'])
+def test_search_error_info_is_a_service_failure_with_original_reason(mode):
+    reason = '其他学科即将开放，敬请期待。'
+    failure = {'errorInfo': reason}
+    def handle(request):
+        if mode == 'body':
+            return httpx.Response(200, json=failure)
+        if mode == 'message':
+            return httpx.Response(200, json={'choices':[{'message':{'content':json.dumps(failure)}}]})
+        if mode == 'metadata_json':
+            return httpx.Response(200, json={'choices':[{'message':{'content':'{}'}}], 'responseData':[failure]})
+        if mode == 'stream_message':
+            # JSON 错误对象可以跨多个增量返回，需组装后识别。
+            text = json.dumps(failure, ensure_ascii=False)
+            chunks = [event({'choices':[{'delta':{'content':text[:12]}}]}),
+                      event({'choices':[{'delta':{'content':text[12:]},'finish_reason':'stop'}]}), event('[DONE]')]
+        elif mode == 'metadata_stream':
+            chunks = [event({'choices':[{'delta':{'content':'{}'},'finish_reason':'stop'}]}),
+                      event('[DONE]'), event([failure], 'flowResponses')]
+        else:
+            chunks = [event(failure, 'error' if mode == 'stream_error' else 'answer'), event('[DONE]')]
+        return httpx.Response(200, headers={'content-type':'text/event-stream'}, stream=Chunks(chunks))
+    with pytest.raises(WorkflowServiceError) as error:
+        WorkflowClient(settings(), httpx.MockTransport(handle)).generate_task([], **task())
+    assert str(error.value) == reason
+
+
+def test_error_info_in_source_evidence_is_not_a_workflow_failure():
+    evidence = '{"errorInfo":"资料中的示例文本"}'
+    response = {'choices':[{'message':{'content':'{}'}}],
+                'responseData':[{'quoteList':[{'id':'s1','q':evidence,'a':''}]}]}
+    result = WorkflowClient(settings(), httpx.MockTransport(lambda _:httpx.Response(200, json=response))).generate_task([], **task())
+    assert result.content == {} and result.sources[0]['evidence'] == evidence
+
+
 def test_revision_and_filters_and_uploads_are_sent_on_every_call():
     def handle(request):
         body=json.loads(request.content); v=body['variables']
         assert v['operation']=='微调'
         assert json.loads(v['repoLabelConfig'])=={'tags':{'课题':'钠'}}
-        assert '上传证据' not in v['dynamicPromot'] and '修复错误' not in v['dynamicPromot']
+        assert '上传证据' not in v['repoSearchInfo'] and '修复错误' not in v['repoSearchInfo']
         assert '上传证据' in body['messages'][-1]['content']
         assert '修复错误' in body['messages'][-1]['content']
         assert '只返回Schema' in v['basePromot']
@@ -240,10 +275,10 @@ def test_final_user_question_carries_contract_and_latest_repair_feedback():
     ],**task())
 
 @pytest.mark.parametrize('category', ['导学案', '互动课件', '限时练习'])
-def test_dynamic_prompt_only_contains_retrieval_content(category):
+def test_repo_search_info_only_contains_retrieval_content(category):
     def handle(request):
         body=json.loads(request.content)
-        query=body['variables']['dynamicPromot']
+        query=body['variables']['repoSearchInfo']
         for topic in ['氧化还原反应', '第一课时', '电子转移', '铜与氧气反应']:
             assert topic in query
         for noise in ['JSON', 'Schema', 'current_outline', '上传证据', '24pt', '10页', '30分钟', '100分']:
@@ -257,3 +292,41 @@ def test_dynamic_prompt_only_contains_retrieval_content(category):
           'teacher_settings':{'edition':'人教版 必修第一册','grade':'高一','chapter':'氧化还原反应','period':'第一课时','options':{'focus':['电子转移']}},
           'prompt':'补充铜与氧气反应实验。生成10页，字体24pt，只返回JSON。\n【优化提示】\n课堂时长：30分钟\n满分：100分\n本课重点：电子转移\n【优化结束】',
           'sources':[{'id':'upload','evidence':'上传证据'}]}))
+
+
+@pytest.mark.parametrize('category', ['导学案', '互动课件', '限时练习'])
+@pytest.mark.parametrize('operation', ['初始化', '微调'])
+def test_chemistry_dynamic_prompt_is_independent_of_retrieval_and_task(category, operation):
+    def handle(request):
+        variables = json.loads(request.content)['variables']
+        dynamic = variables['dynamicPromot']
+        for requirement in [
+            '四、化学表达', '[H2O]、[SO4^2-]', '2[KMnO4]', '不得写成 [2KMnO4]',
+            '物种正确、连接符完整并配平', '不得为满足格式要求随意改变反应物、生成物或反应条件',
+            '{"text":"点燃","condition":true}', '{"text":"△","condition":true}',
+            '不写 △→ 或 Δ→', '渲染器负责绘制连续双实线连接符',
+            '普通等号使用单个 =', '同一个扁平 run 数组',
+            '{"text":"[CaCO3] "}', '{"text":"高温","condition":true}',
+            '{"text":" [CaO] + [CO2]↑"}', '不输出 HTML <br>', r'JSON 字符串中的 \n',
+        ]:
+            assert requirement in dynamic
+        assert variables['repoSearchInfo'] == '化学 钠及其化合物 钠与水反应'
+        assert '钠与水反应' not in dynamic and 'Schema' not in dynamic
+        assert variables['operation'] == operation
+        return httpx.Response(200, json={'choices':[{'message':{'content':'{}'}}]})
+    WorkflowClient(settings(), httpx.MockTransport(handle)).generate_task(
+        [{'role':'system', 'content':'Schema: {}'}],
+        **(task() | {'agent_category':category, 'operation':operation, 'prompt':'补充钠与水反应'}))
+
+
+@pytest.mark.parametrize('subject', ['语文', '数学', '英语', '物理', '生物', '政治', '历史', '地理'])
+def test_other_subjects_do_not_receive_chemistry_dynamic_prompt(subject):
+    def handle(request):
+        variables = json.loads(request.content)['variables']
+        assert variables['repoSearchInfo'] == f'{subject} 本课知识点'
+        assert variables['dynamicPromot'] == ''
+        return httpx.Response(200, json={'choices':[{'message':{'content':'{}'}}]})
+    config = settings()
+    config.datasets = [{'id':'dataset', 'name':subject+'教材'}]
+    WorkflowClient(config, httpx.MockTransport(handle)).generate_task([], **(task() | {
+        'teacher_settings':{'subject':subject, 'chapter':'本课知识点'}, 'prompt':''}))

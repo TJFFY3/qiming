@@ -176,8 +176,7 @@
 /* 对话页将预览开关放入标题操作区，省去额外的顶部工具栏。 */
 .workbench-main:has(.conversation-header) .conversation-header { top: 0; }
 .workbench-main .conversation-actions { margin-left: auto; }
-.library-subject-folder { margin: 16px 0; }
-.library-subject-folder > summary, .library-dataset-folder > summary { cursor: pointer; display: flex; align-items: center; gap: 9px; padding: 12px 10px; font-weight: 600; font-size: 14px; background: #eaf0fa; border-radius: 8px; }
+.library-dataset-folder > summary { cursor: pointer; display: flex; align-items: center; gap: 9px; padding: 12px 10px; font-weight: 600; font-size: 14px; background: #eaf0fa; border-radius: 8px; }
 .library-dataset-folder { margin: 10px 0 10px 18px; }
 .library-dataset-folder > summary { font-size: 12px; background: #eef1f6; font-weight: 500; }
 .library-dataset-folder summary small { margin-left: auto; color: #8b98aa; }
@@ -244,3 +243,11 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 }
 .workbench-preview-slot .document-card > .source-issues > summary { padding: 12px 20px; }
 .workbench-preview-slot .document-card > .source-issues > ul { margin: 0; padding: 0 24px 14px 38px; }
+/* 九科学科导航固定顺序，切换时仅展示当前学科的知识库。 */
+.library-subject-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 0 12px; border-bottom: 1px solid #e3e8f0; margin-bottom: 12px; }
+.library-subject-tabs button { border: 0; background: transparent; color: #8390a5; border-radius: 7px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
+.library-subject-tabs button:hover { background: #edf1f8; }
+.library-subject-tabs button[aria-selected="true"] { background: #e5edfd; color: #3a62b4; font-weight: 600; }
+.library-subject-tabs button:focus-visible { outline: 2px solid #7899dc; outline-offset: 2px; }
+.knowledge-library [role="tabpanel"] > .library-dataset-folder { margin-left: 0; }
+.library-document-focused { border-color: #7397df; box-shadow: 0 0 0 2px #e5edfc; scroll-margin-top: 12px; }

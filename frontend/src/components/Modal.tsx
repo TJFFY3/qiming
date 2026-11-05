@@ -8,12 +8,14 @@ export default function Modal({
   children,
   className = "",
   placement = "center",
+  hideHeader = false,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   className?: string;
   placement?: "center" | "sidebar";
+  hideHeader?: boolean;
 }) {
   const workbench = useWorkbench();
   const docked = placement === "sidebar" && !!workbench;
@@ -67,10 +69,10 @@ export default function Modal({
   const content = (
     <div ref={ref} tabIndex={-1} role="dialog" aria-modal={docked ? undefined : true}
       aria-label={title} className={"modal " + (docked ? "workbench-docked-panel " : "") + className}>
-      <div className="modal-header">
+      {!hideHeader && <div className="modal-header">
         <h2>{title}</h2>
         <button className="icon-button" aria-label="关闭" onClick={onClose}><X /></button>
-      </div>
+      </div>}
       {children}
     </div>
   );

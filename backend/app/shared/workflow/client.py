@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 
 from .retrieval_query import build_retrieval_query
+from .subject_prompts import subject_dynamic_prompt
 
 import httpx
 
@@ -17,6 +18,14 @@ WORKFLOW_APP_ID = '6ae34b10b1b18f9bb876d8ac'
 
 class WorkflowServiceError(ValueError):
     """连接、权限或执行故障，不能靠模型改写内容修复。"""
+
+
+def _check_search_error(value):
+    """知识库的业务拒绝直接作为失败原因，不能当成成品 JSON 进入自动修复。"""
+    if isinstance(value, dict):
+        reason = value.get('errorInfo')
+        if isinstance(reason, str) and reason.strip():
+            raise WorkflowServiceError(reason.strip())
 
 
 class WorkflowOutputError(ValueError):
@@ -102,7 +111,7 @@ class WorkflowClient:
             "应用仅根据响应quoteList中的真实原图证据转换标识，未知标识会被拒绝。"
             "不得输出或虚构图片URL，不得将描述当作图片。"
         )
-        # 完整生成上下文只放在 messages；dynamicPromot 专供工作流知识库节点检索。
+        # repoSearchInfo 仅供检索；dynamicPromot 按学科提供生成要求，不参与检索词提炼。
         context = {
             'teacher_request': prompt,
             'output_contract': system,
@@ -116,7 +125,8 @@ class WorkflowClient:
             chapters=json.dumps(chapters, ensure_ascii=False),
             repoLabelConfig=json.dumps(filters, ensure_ascii=False),
             subject=subject,
-            dynamicPromot=build_retrieval_query(teacher_settings, prompt),
+            repoSearchInfo=build_retrieval_query(teacher_settings, prompt),
+            dynamicPromot=subject_dynamic_prompt(subject),
             agentCategory=agent_category,
             basePromot=system,
             operation=operation,
@@ -159,6 +169,7 @@ class WorkflowClient:
                 for node in nodes:
                     collect(node)
             elif isinstance(nodes, dict):
+                _check_search_error(nodes)
                 error = nodes.get('errorText') or nodes.get('errorMessage') or nodes.get('error')
                 if error:
                     if 'unExistDataset' in str(error):
@@ -218,6 +229,7 @@ class WorkflowClient:
                             body = json.loads(response.read())
                         except (ValueError, UnicodeDecodeError):
                             raise WorkflowServiceError('工作流服务返回非 JSON 响应') from None
+                        _check_search_error(body)
                         if not isinstance(body, dict) or body.get('error') or body.get('code') not in (None, 0, 200):
                             raise WorkflowServiceError('FastGPT 工作流执行失败，请检查应用配置和权限')
                         collect(body.get('responseData', []))
@@ -241,6 +253,12 @@ class WorkflowClient:
                                 completed = True
                                 return
                             if name == 'error':
+                                try:
+                                    error_body = json.loads(raw)
+                                except ValueError:
+                                    pass
+                                else:
+                                    _check_search_error(error_body)
                                 raise WorkflowServiceError('FastGPT 工作流执行失败，请检查应用配置和权限')
                             if name not in ('', 'answer', 'fastAnswer', 'flowResponses'):
                                 return
@@ -248,6 +266,7 @@ class WorkflowClient:
                                 item = json.loads(raw)
                             except ValueError:
                                 raise WorkflowServiceError('工作流流式响应包含无效事件') from None
+                            _check_search_error(item)
                             if name == 'flowResponses':
                                 collect(item)
                                 return
@@ -304,4 +323,6 @@ class WorkflowClient:
                 raise ValueError('必须为对象')
         except (ValueError, TypeError):
             raise output_error('工作流正文不是完整有效的 JSON 对象', original) from None
+        # 放在 JSON 解析异常捕获之外，避免将业务拒绝误包装为可重试的格式错误。
+        _check_search_error(result)
         return WorkflowResult(result, list(collected.values()))

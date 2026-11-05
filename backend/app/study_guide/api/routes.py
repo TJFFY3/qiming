@@ -10,7 +10,9 @@ import uuid
 from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
-from backend.app.shared.knowledge.library import KnowledgeLibrary
+from backend.app.shared.knowledge.library import KnowledgeLibrary, chapters_from_documents
+from backend.app.shared.knowledge.library_images import LibraryImages, browser_library
+from backend.app.shared.tools.images import ImageAssetError
 from backend.app.study_guide.domain.models import SessionInput, GenerationInput, RevisionInput, ReviewInput
 from backend.app.shared.tools.resources import extract_resource, MAX_BYTES
 from backend.app.study_guide.storage.store import Conflict
@@ -63,6 +65,7 @@ def make_router(settings, store, pipeline):
     library_id = hashlib.sha256(
         json.dumps([settings.fastgpt_url, settings.datasets], sort_keys=True).encode()
     ).hexdigest()
+    library_images = LibraryImages(settings, library_id, lambda: store.get_library(library_id))
 
     @router.get("/library/subjects")
     def library_subjects():
@@ -72,16 +75,29 @@ def make_router(settings, store, pipeline):
 
     @router.get("/library/chapters")
     def library_chapters(subject: str = '化学'):
-        return {"subject": subject, "chapters": library.chapters(subject)}
+        snapshot = store.get_library(library_id)
+        # 已同步时与右侧展示共用目录，避免分别读取实时目录和旧快照产生差异。
+        chapters = chapters_from_documents(snapshot['documents'], subject) if snapshot['synced_at'] else library.chapters(subject)
+        return {"subject": subject, "chapters": chapters}
 
     @router.get("/library")
     def full_library():
-        return clean_public(store.get_library(library_id))
+        return clean_public(browser_library(store.get_library(library_id), settings.fastgpt_url))
 
     @router.post("/library/sync")
     def sync_library():
         # Save only a complete sync. A failed refresh retains the previous snapshot.
-        return clean_public(store.save_library(library_id, library.synchronize()))
+        return clean_public(browser_library(store.save_library(library_id, library.synchronize()), settings.fastgpt_url))
+
+    @router.get("/library/images/{source_id}/{index}")
+    def library_image(source_id: str, index: int, v: str | None = None):
+        try:
+            path, mime = library_images.resolve(source_id, index, v)
+        except ImageAssetError as exc:
+            raise HTTPException(502, str(exc)) from None
+        return FileResponse(path, media_type=mime, headers={
+            'Cache-Control': 'private, no-cache', 'X-Content-Type-Options': 'nosniff',
+        })
 
     @router.get("/library/{collection_id}/original")
     def original(collection_id: str):

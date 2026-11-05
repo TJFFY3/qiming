@@ -31,6 +31,29 @@ test("renders FastGPT Markdown images inline and retains original URL", () => {
   ).toBe("https://cloud.fastgpt.cn/api/system/file/d/example");
   expect(screen.getByText("后续说明")).toBeTruthy();
 });
+test("loads stable same-origin images and preserves Office conversion fallback", async () => {
+  const url = "/api/library/images/aaaaaaaaaaaaaaaaaaaaaaaa/0?v=0123456789abcdef";
+  const { convertSourceImage } = await import("../metafile");
+  render(<SourceEvidence text={`![装置图](${url})`} />);
+  expect(screen.getByRole("img", { name: "装置图" }).getAttribute("src")).toBe(url);
+  expect(screen.getByRole("link", { name: "查看原图" }).getAttribute("href")).toBe(url);
+  fireEvent.error(screen.getByRole("img", { name: "装置图" }));
+  await waitFor(() => expect(screen.getByRole("img", { name: "装置图" }).getAttribute("src")).toBe("data:image/png;base64,converted"));
+  expect(convertSourceImage).toHaveBeenCalledWith(url);
+});
+test("refreshing the catalog remounts an Office image for the new snapshot", async () => {
+  const before = "/api/library/images/aaaaaaaaaaaaaaaaaaaaaaaa/0?v=0123456789abcdef";
+  const after = "/api/library/images/aaaaaaaaaaaaaaaaaaaaaaaa/0?v=fedcba9876543210";
+  const { rerender } = render(<SourceEvidence text={`![装置图](${before})`} />);
+  fireEvent.error(screen.getByRole("img", { name: "装置图" }));
+  await waitFor(() => expect(screen.getByRole("img", { name: "装置图" }).getAttribute("src")).toBe("data:image/png;base64,converted"));
+  rerender(<SourceEvidence text={`![装置图](${after})`} />);
+  expect(screen.getByRole("img", { name: "装置图" }).getAttribute("src")).toBe(after);
+});
+test("rejects arbitrary relative and protocol-relative image URLs", () => {
+  const { container } = render(<SourceEvidence text={"![bad](/api/sessions)\n\n![bad](//evil.test/image)"} />);
+  expect(container.querySelector("img")).toBeNull();
+});
 test("converts unsupported Office image formats after native image failure", async () => {
   render(
     <SourceEvidence

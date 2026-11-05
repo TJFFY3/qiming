@@ -139,7 +139,10 @@ export function LessonToolbar<T extends { edition?: string; grade?: string; subj
           <option>高三</option>
         </select>
         <select aria-label={prefix + "学科"} value={settings.subject || "化学"} disabled={busy}
-          onChange={e => onSettings({...settings, subject:e.target.value, ...subjectLessons[e.target.value], options:{...settings.options,focus:["按本课安排（默认）"],extra:""}})}>
+          onChange={e => {
+            onSettings({...settings, subject:e.target.value, chapter:"", ...subjectLessons[e.target.value], options:{...settings.options,focus:["按本课安排（默认）"],extra:""}});
+            workbench?.locateLibrary(e.target.value);
+          }}>
           {Object.keys(subjectLessons).filter(subject => subjects.includes(subject) || subject === (settings.subject || "化学")).map(subject => <option key={subject}>{subject}</option>)}
         </select>
 

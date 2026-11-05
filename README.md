@@ -95,6 +95,8 @@ settings = Settings(
 | `GET /api/sessions/{id}/versions/{version_id}` | 版本内容及报告 |
 | `GET /api/sessions/{id}/versions/{version_id}/files/{kind}` | Word / 内容 JSON / 报告下载 |
 
+三个 Agent 新建会话及更新设置时，`chapter` 为必填项，取教师选择的知识库实际章节。缺失或空字符串返回 HTTP 422，不再补入固定化学课题。
+
 面向本机或受信任内网单教师，不含登录与租户隔离；不直接作为多用户公网服务发布。服务重启时未完成任务标记中断，可重试，不自动重复调用收费模型。
 
 ### 资料库与生成来源

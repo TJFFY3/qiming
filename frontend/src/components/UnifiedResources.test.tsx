@@ -82,8 +82,10 @@ test.each(agents)(
     );
     expect(screen.getByRole("dialog", { name: "资料库" })).toBeTruthy();
     expect(screen.queryByText("添加本课参考资料")).toBeNull();
+    expect(screen.queryByText(/^浏览 FastGPT 知识库/)).toBeNull();
+    fireEvent.click(screen.getByRole("tab",{name:"数学"}));
     const file = await screen.findByRole("button", {name:/知识库教材.pdf/});
-    expect(file.closest(".library-subject-folder")?.querySelector("summary")?.textContent).toContain("数学");
+    expect(screen.getByRole("tab",{name:"数学"}).getAttribute("aria-selected")).toBe("true");
     expect(file.closest(".library-dataset-folder")?.querySelector("summary")?.textContent).toContain("教材库");
     fireEvent.click(file);
     expect(

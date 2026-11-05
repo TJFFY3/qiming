@@ -25,6 +25,9 @@ def test_default_app_generates_and_revises_via_workflow_only(tmp_path, monkeypat
         payload=json.loads(request.content); calls.append(payload)
         assert payload['appId']==WORKFLOW_APP_ID
         v=payload['variables']; assert v['agentCategory']==category
+        assert 'repoSearchInfo' in v and '氧化还原反应' in v['repoSearchInfo']
+        assert v['dynamicPromot'].startswith('四、化学表达')
+        assert '氧化还原反应' not in v['dynamicPromot']
         if category=='导学案':
             content=copy.deepcopy(guide)
             if v['operation']=='微调':
@@ -46,7 +49,7 @@ def test_default_app_generates_and_revises_via_workflow_only(tmp_path, monkeypat
     config=Settings(data_dir=tmp_path,fastgpt_url='https://workflow.test',fastgpt_key='KEY',
                     datasets=[{'id':'dataset'}])
     with TestClient(create_app(config)) as client:
-        response=client.post(prefix+'/sessions',json=practice_settings() if category=='限时练习' else {})
+        response=client.post(prefix+'/sessions',json=practice_settings() if category=='限时练习' else {"chapter":"第三节 氧化还原反应"})
         sid=response.json()['id']
         first=client.post(f'{prefix}/sessions/{sid}/generate',json={'prompt':'生成本课内容'}).json()
         job=client.get(f'{prefix}/jobs/'+first['id']).json()
@@ -89,7 +92,7 @@ def test_first_workflow_image_can_be_exported_from_trusted_quote(tmp_path,monkey
     monkeypatch.setattr(DocumentEngine,'__init__',lambda self,settings=None,image_transport=None:doc_init(self,settings,mock))
     config=Settings(data_dir=tmp_path,fastgpt_url='https://workflow.test',fastgpt_key='KEY',datasets=[{'id':'dataset'}])
     with TestClient(create_app(config)) as client:
-        sid=client.post('/api/sessions',json={}).json()['id']
+        sid=client.post('/api/sessions',json={"chapter":"第三节 氧化还原反应"}).json()['id']
         jid=client.post(f'/api/sessions/{sid}/generate',json={'prompt':'请配图生成导学案'}).json()['id']
         job=client.get('/api/jobs/'+jid).json()
         assert job['status']=='completed',job
@@ -97,3 +100,44 @@ def test_first_workflow_image_can_be_exported_from_trusted_quote(tmp_path,monkey
         image_id=image_catalog(version['sources'])[0]['image_id']
         assert version['content']['sections'][0]['blocks'][0]['image_id']==image_id
         assert (tmp_path/sid/'versions'/version['id']/'images'/f'{image_id}.bin').is_file()
+
+
+@pytest.mark.parametrize('category,prefix', [
+    ('导学案','/api'), ('互动课件','/api/courseware'), ('限时练习','/api/timed-practice'),
+])
+@pytest.mark.parametrize('operation', ['初始化', '微调'])
+def test_search_error_info_reaches_failed_agent_job_without_repair(tmp_path, monkeypatch, category, prefix, operation):
+    reason = '其他学科即将开放，敬请期待。'
+    calls = []
+    def handle(request):
+        payload = json.loads(request.content)
+        current = payload['variables']['operation']
+        calls.append(current)
+        if current == operation:
+            content = {'errorInfo':reason}
+        elif category == '导学案':
+            content = json.loads(Path('vendor/chemistry/examples/outline.json').read_text())
+        elif category == '互动课件':
+            content = deck()
+        else:
+            content = paper()
+        return httpx.Response(200, json={'choices':[{'message':{'content':json.dumps(content, ensure_ascii=False)}}],
+            'responseData':[{'quoteList':[{'id':'s1','datasetId':'dataset','q':'氧化还原反应','a':'比较元素化合价，分析电子转移。'}]}]})
+    transport_mock = httpx.MockTransport(handle)
+    original = WorkflowClient.__init__
+    monkeypatch.setattr(WorkflowClient, '__init__', lambda self,s,transport=None:original(self,s,transport_mock))
+    config = Settings(data_dir=tmp_path, fastgpt_url='https://workflow.test', fastgpt_key='KEY', datasets=[{'id':'dataset'}])
+    with TestClient(create_app(config)) as client:
+        sid = client.post(prefix+'/sessions', json=practice_settings() if category=='限时练习' else {"chapter":"第三节 氧化还原反应"}).json()['id']
+        first = client.post(f'{prefix}/sessions/{sid}/generate', json={'prompt':'生成本课内容'}).json()
+        if operation == '微调':
+            assert client.get(f'{prefix}/jobs/'+first['id']).json()['status'] == 'completed'
+            version = client.get(f'{prefix}/sessions/{sid}').json()['versions'][0]
+            first = client.post(f'{prefix}/sessions/{sid}/revise', json={
+                'prompt':'调整本课内容', 'base_version_id':version['id'],
+            }).json()
+        failed = client.get(f'{prefix}/jobs/'+first['id']).json()
+        assert failed['status'] == 'failed'
+        assert failed['error'] == reason
+        assert calls == (['初始化'] if operation=='初始化' else ['初始化','微调'])
+        assert len(client.get(f'{prefix}/sessions/{sid}').json()['versions']) == (0 if operation=='初始化' else 1)

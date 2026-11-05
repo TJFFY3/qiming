@@ -20,7 +20,7 @@ afterEach(() => {
 test("all entry pages offer the same native chapter and two-period interaction", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input) => String(input).includes("/library/chapters") ? Response.json({chapters:["第一章 知识库章节", "第二章 知识库章节"]}) : Response.json({ ready: true, missing: [] })),
+    vi.fn(async (input) => String(input).endsWith("/library") ? Response.json({documents:[],chunk_count:0,synced_at:"2026-11-05"}) : String(input).includes("/library/chapters") ? Response.json({chapters:["第一章 知识库章节", "第二章 知识库章节"]}) : Response.json({ ready: true, missing: [] })),
   );
   render(<App />);
   await act(async () => {});
@@ -69,6 +69,7 @@ test("practice Enter keeps composing and Ctrl+Enter submits once with the select
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input),
         body = init?.body ? JSON.parse(String(init.body)) : null;
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第一章 物质及其变化"]});
       if (init?.method === "POST") submitted.push({ url, body });
       if (url.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
@@ -127,6 +128,7 @@ test.each([
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         const body = init?.body ? JSON.parse(String(init.body)) : null;
+        if (url.includes("/library/chapters")) return Response.json({chapters:["第一章 物质及其变化"]});
         if (url.endsWith("/health"))
           return Response.json({ ready: true, missing: [] });
         if (init?.method === "POST" && url.endsWith("/sessions"))
@@ -155,10 +157,11 @@ test.each([
     );
     render(<App />);
     await act(async () => {});
+    await waitFor(() => expect((screen.getByRole("button", { name:agent.submit }) as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: agent.submit }));
     await waitFor(() =>
       expect(submitted).toContain(
-        `请根据本课内容生成一份${agent.product}。\n\n学科：化学\n教材版本：人教版 必修第一册\n年级：高一\n章节 / 知识点：第三节 氧化还原反应\n课时：第一课时`,
+        `请根据本课内容生成一份${agent.product}。\n\n学科：化学\n教材版本：人教版 必修第一册\n年级：高一\n章节 / 知识点：第一章 物质及其变化\n课时：第一课时`,
       ),
     );
   },
@@ -171,7 +174,9 @@ test.each(["guide", "courseware", "practice"])("%s prevents new sessions while a
   let session: any;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    if (url.includes("/library/chapters")) return Response.json({chapters:[url.includes(encodeURIComponent("数学")) ? "第一章 集合与常用逻辑用语" : "第一章 物质及其变化"]});
     if (url.endsWith("/health")) return Response.json({ready:true,missing:[]});
+    if (url.endsWith("/library")) return Response.json({documents:[],chunk_count:0,synced_at:"2026-11-05"});
     if (url.endsWith("/resources") && init?.method === "POST") {
       await pending;
       return Response.json({});
@@ -189,6 +194,7 @@ test.each(["guide", "courseware", "practice"])("%s prevents new sessions while a
   expect(within(subject).getAllByRole("option").map(item => item.textContent)).toEqual(order);
   fireEvent.change(subject, {target:{value:"数学"}});
   expect(within(subject).getAllByRole("option").map(item => item.textContent)).toEqual(order);
+  await waitFor(() => expect((screen.getByRole("button",{name:"上传附件"}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.change(screen.getByLabelText("上传附件文件"), {target:{files:[new File(["教材"], "教材.txt")]}});
   await waitFor(() => expect(screen.getByRole("button", {name:"新建任务"}).hasAttribute("disabled")).toBe(true));
   fireEvent.click(screen.getByRole("button", {name:"新建任务"}));

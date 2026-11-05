@@ -107,8 +107,8 @@ def app_for(tmp_path, replies=None, hits=True):
 
 def test_courseware_namespace_exists_and_rejects_guide_session(tmp_path):
     with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
-        guide = client.post("/api/sessions", json={}).json()
-        response = client.post(PREFIX + "/sessions", json={})
+        guide = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()
+        response = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"})
         assert response.status_code == 200
         course = response.json()
         assert client.get(PREFIX + "/sessions/" + guide["id"]).status_code == 404
@@ -122,7 +122,7 @@ def test_generate_actual_editable_pptx_revision_and_snapshot(tmp_path):
         tmp_path, [deck(), {"mode": "patch", "title": "修改后课件", "changes": []}]
     )
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         job = client.post(
             f"{PREFIX}/sessions/{sid}/generate",
             json={"prompt": "设计互动课件", "allow_draft": True},
@@ -183,7 +183,7 @@ def test_generate_actual_editable_pptx_revision_and_snapshot(tmp_path):
 def test_source_gap_does_not_gate_generation_and_uploads_are_isolated(tmp_path):
     app, _ = app_for(tmp_path, [deck(), deck()], hits=False)
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         job = client.post(
             f"{PREFIX}/sessions/{sid}/generate", json={"prompt": "设计课件"}
         ).json()
@@ -222,7 +222,7 @@ def test_invalid_model_paths_fail_without_pptx(tmp_path):
     ]:
         app, _ = app_for(tmp_path, [bad, bad, bad])
         with TestClient(app) as client:
-            sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+            sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
             job = client.post(
                 f"{PREFIX}/sessions/{sid}/generate",
                 json={"prompt": "设计", "allow_draft": True},
@@ -294,7 +294,7 @@ def test_page_count_conflict_is_visible_and_submission_settings_are_snapshotted(
     app, _ = app_for(tmp_path)
     with TestClient(app) as client:
         sid = client.post(
-            PREFIX + "/sessions", json={"options": {"pages": "15 页"}}
+            PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应", "options": {"pages": "15 页"}}
         ).json()["id"]
         job = client.post(
             f"{PREFIX}/sessions/{sid}/generate", json={"allow_draft": True}
@@ -312,7 +312,7 @@ def test_revision_retains_original_evidence_after_upload_is_removed(tmp_path):
         hits=False,
     )
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         resource = client.post(
             f"{PREFIX}/sessions/{sid}/resources",
             files={"file": ("教材.txt", "原文证据：电子转移。".encode(), "text/plain")},
@@ -359,7 +359,7 @@ def test_model_placeholder_content_is_repaired_before_delivery(tmp_path):
     bad["slides"][0]["paragraphs"] = ["授课教师：XXX", "日期：XXXX年XX月"]
     app, _ = app_for(tmp_path, [bad, deck()])
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         job = client.post(
             f"{PREFIX}/sessions/{sid}/generate", json={"allow_draft": True}
         ).json()
@@ -375,7 +375,7 @@ def test_new_upload_is_in_revision_context_when_baseline_uses_full_budget(tmp_pa
         hits=False,
     )
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         for i in range(4):
             assert (
                 client.post(
@@ -426,7 +426,7 @@ def test_page_patch_replaces_only_requested_page_and_keeps_other_pages(tmp_path)
     patch = {"mode": "patch", "changes": [{"page": 1, "slide": changed}]}
     app, _ = app_for(tmp_path, [deck(), patch])
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         client.post(f"{PREFIX}/sessions/{sid}/generate", json={"allow_draft": True})
         first = client.get(PREFIX + "/sessions/" + sid).json()["versions"][0]
         job = client.post(
@@ -449,7 +449,7 @@ def test_out_of_range_page_patch_does_not_create_version(tmp_path):
     bad = {"mode": "patch", "changes": [{"page": 9, "slide": deck()["slides"][0]}]}
     app, _ = app_for(tmp_path, [deck(), bad, bad, bad])
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         client.post(f"{PREFIX}/sessions/{sid}/generate", json={"allow_draft": True})
         first = client.get(PREFIX + "/sessions/" + sid).json()["versions"][0]
         job = client.post(
@@ -503,7 +503,7 @@ def test_equation_content_errors_trigger_model_repair_before_publication(tmp_pat
     ]
     app, requests = app_for(tmp_path, [missing, unbalanced, corrected])
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         job = client.post(f"{PREFIX}/sessions/{sid}/generate", json={}).json()
         assert client.get(PREFIX + "/jobs/" + job["id"]).json()["status"] == "completed"
         versions = client.get(PREFIX + "/sessions/" + sid).json()["versions"]
@@ -519,7 +519,7 @@ def test_equation_content_errors_trigger_model_repair_before_publication(tmp_pat
 def test_malformed_model_json_is_repaired_before_export(tmp_path):
     app, calls = app_for(tmp_path, ['{"title":"氧化还原","slides":[', deck()])
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         job = client.post(f"{PREFIX}/sessions/{sid}/generate", json={}).json()
         done = client.get(PREFIX + "/jobs/" + job["id"]).json()
         assert done["status"] == "completed", done
@@ -532,7 +532,7 @@ def test_invalid_json_during_equation_repair_keeps_shared_retry_budget(tmp_path)
     bad["slides"][0]["paragraphs"] = ["2[Cu] + [O2] = [CuO]"]
     app, calls = app_for(tmp_path, [bad, '{"title":', deck()])
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         job = client.post(f"{PREFIX}/sessions/{sid}/generate", json={}).json()
         done = client.get(PREFIX + "/jobs/" + job["id"]).json()
         assert done["status"] == "completed", done
@@ -544,7 +544,7 @@ def test_repeated_malformed_json_stops_after_three_calls_without_partial_artifac
 ):
     app, calls = app_for(tmp_path, ['{"slides":'] * 3)
     with TestClient(app) as client:
-        sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+        sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         job = client.post(f"{PREFIX}/sessions/{sid}/generate", json={}).json()
         done = client.get(PREFIX + "/jobs/" + job["id"]).json()
         assert done["status"] == "failed"
@@ -574,7 +574,7 @@ def test_connection_timeout_is_not_misreported_as_json_or_retried(tmp_path):
 
     settings = Settings(data_dir=tmp_path)
     store = CoursewareStore(tmp_path / "courseware" / "agent.sqlite")
-    sid = store.create_session(CoursewareSettings().model_dump())["id"]
+    sid = store.create_session(CoursewareSettings(chapter="第三节 氧化还原反应").model_dump())["id"]
     model = TimeoutModel()
     pipeline = CoursewarePipeline(settings, store, NoHits(), model)
     job = pipeline.start_generation(sid, {"prompt": "生成课件"})

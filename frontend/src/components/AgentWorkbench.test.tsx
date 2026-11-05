@@ -100,6 +100,7 @@ test("closing the right panel allows it to reopen", () => {
 });
 
 test("upload attachment is next to send and passes files through the agent callback", async () => {
+  vi.stubGlobal("fetch", vi.fn(async input => String(input).includes("/library/chapters") ? Response.json({chapters:["氧化还原反应"]}) : Response.json({subjects:["化学"]})));
   const upload = vi.fn().mockResolvedValue(undefined);
   const { default: Composer } = await import("./Composer");
   render(<AgentWorkbench agent="guide" ready busy={false} {...actions()} onUpload={upload}>
@@ -107,6 +108,7 @@ test("upload attachment is next to send and passes files through the agent callb
   </AgentWorkbench>);
   expect(screen.getByRole("button", {name:"上传附件"}).parentElement).toBe(screen.getByRole("button", {name:"生成导学案"}).parentElement);
   const file = new File(["化学教材"], "教材.txt", {type:"text/plain"});
+  await vi.waitFor(() => expect((screen.getByRole("button",{name:"上传附件"}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.change(screen.getByLabelText("上传附件文件"), {target:{files:[file]}});
   await vi.waitFor(() => expect(upload).toHaveBeenCalledWith(file, "textbook"));
   expect(screen.getByRole("button", {name:"隐藏文件预览"}).textContent).toBe("");

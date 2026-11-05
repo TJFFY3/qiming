@@ -10,7 +10,9 @@ import {
 } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import App from "./App";
-import { defaultSettings } from "./agents/study-guide/services/api";
+import { defaultSettings as emptySettings } from "./agents/study-guide/services/api";
+// 历史会话已有选定章节，不依赖新建草稿的空目录初始状态。
+const defaultSettings = () => ({...emptySettings(), chapter:"第三节 氧化还原反应"});
 
 afterEach(() => {
   cleanup();
@@ -43,6 +45,7 @@ test("terminal job refreshes session even when the session response is delayed",
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第三节 氧化还原反应"]});
       if (url.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
       if (url.endsWith("/jobs/job"))
@@ -158,6 +161,7 @@ test("retry of a failed regeneration remains generation when an earlier version 
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第三节 氧化还原反应"]});
       calls.push((init?.method || "GET") + " " + url);
       if (url.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
@@ -321,6 +325,7 @@ test.each(["queued", "running"])(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第三节 氧化还原反应"]});
         requests.push((init?.method || "GET") + " " + url);
         if (url.endsWith("/health"))
           return Response.json({ ready: true, missing: [] });
@@ -401,6 +406,7 @@ test("returning home while submission is pending is not undone by its delayed re
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第三节 氧化还原反应"]});
       if (url.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
       if (url.endsWith("/generate") && init?.method === "POST") {

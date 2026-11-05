@@ -11,6 +11,8 @@ const agents = [
   { id: "practice", name: "限时练习", Icon: ListChecks },
 ] as const;
 
+type LibraryTarget = {subject: string; chapter?: string; requestId: number};
+
 type WorkbenchContextValue = {
   previewTarget: HTMLDivElement | null;
   headerTarget: HTMLDivElement | null;
@@ -20,6 +22,9 @@ type WorkbenchContextValue = {
   setHasPreview: (value: boolean) => void;
   showPreview: () => void;
   showChat: () => void;
+  libraryTarget: LibraryTarget | null;
+  locateLibrary: (subject: string, chapter?: string) => void;
+  resolveLibraryChapter: (requestId: number, chapter: string) => void;
   onUpload?: (file: File, category: string) => Promise<void>;
   attachments: { id: string; title: string }[];
 };
@@ -58,6 +63,8 @@ export default function AgentWorkbench({
   historyLabel?: string;
   children: ReactNode;
 }) {
+  const [libraryTarget, setLibraryTarget] = useState<LibraryTarget | null>(null);
+  const libraryRequestId = useRef(0);
   const [headerTarget, setHeaderTarget] = useState<HTMLDivElement | null>(null);
   const workbenchRef = useRef<HTMLDivElement>(null);
   const dragPointer = useRef<number | null>(null);
@@ -85,14 +92,23 @@ export default function AgentWorkbench({
   const showChat = useCallback(() => { setPane("chat"); setMenuOpen(false); updatePanelOpen(false); }, []);
   const showPreview = useCallback(() => { setPreviewOpen(true); setPane("preview"); setMenuOpen(false); updatePanelOpen(false); }, []);
   const hidePreview = () => { dragPointer.current=null; setResizing(false); setPreviewOpen(false); setPane("chat"); updatePanelOpen(false); };
-  const startNew = () => { setPane("chat"); setMenuOpen(false); onNew(); };
+  const startNew = () => { setLibraryTarget(null); setPane("chat"); setMenuOpen(false); onNew(); };
   const product = agents.find((item) => item.id === agent)!.name;
   const openPanel = (action: () => void) => { setPreviewOpen(true); setPane("preview"); setMenuOpen(false); action(); };
+  const locateLibrary = (subject: string, chapter?: string) => {
+    setLibraryTarget({subject,chapter,requestId:++libraryRequestId.current});
+    setPanelOpen(true);
+    onResources();
+  };
+  // 异步目录结果只补全定位目标，不重新打开已关闭的资料库或覆盖历史任务面板。
+  const resolveLibraryChapter = (requestId: number, chapter: string) => {
+    setLibraryTarget(current => current?.requestId === requestId && !current.chapter ? {...current,chapter} : current);
+  };
   const previewToggle = <button className="icon-button" aria-label={previewOpen ? "隐藏文件预览" : "显示文件预览"} title={previewOpen ? "隐藏文件预览" : "显示文件预览"} aria-expanded={previewOpen} onClick={previewOpen ? hidePreview : showPreview}>
     {previewOpen ? <PanelRightClose size={19} /> : <PanelRightOpen size={19} />}
   </button>;
   return (
-    <WorkbenchContext.Provider value={{ headerTarget, previewTarget, sidebarTarget, menuOpen: panelOpen, onUpload, attachments, setPanelOpen, setHasPreview, showPreview, showChat }}>
+    <WorkbenchContext.Provider value={{ libraryTarget, locateLibrary, resolveLibraryChapter, headerTarget, previewTarget, sidebarTarget, menuOpen: panelOpen, onUpload, attachments, setPanelOpen, setHasPreview, showPreview, showChat }}>
       <div ref={workbenchRef} className="agent-workbench" data-resizing={resizing} style={{"--main-share":`${1-previewShare}fr`, "--preview-share":`${previewShare}fr`} as CSSProperties} data-preview={previewOpen} data-pane={pane} data-panel={panelOpen} data-menu={menuOpen}>
         <div className="workbench-mobile-toolbar">
           <button className="icon-button" aria-label="展开工作台菜单" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><Menu size={20} /></button>

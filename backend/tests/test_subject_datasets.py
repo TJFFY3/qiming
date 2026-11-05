@@ -15,7 +15,8 @@ def test_workflow_routes_only_selected_subject_dataset(category):
                 {'_id':'math','name':'数学教材','type':'dataset'}]})
         assert body['variables']['subject']=='数学'
         assert body['variables']['datasetIds']==[{'datasetId':'math'}]
-        assert '数学' in body['variables']['dynamicPromot']
+        assert '数学' in body['variables']['repoSearchInfo']
+        assert body['variables']['dynamicPromot'] == ''
         return httpx.Response(200,json={'choices':[{'message':{'content':'{}'}}]})
     config=settings();config.datasets=[{'id':'root','type':'folder'}]
     WorkflowClient(config,httpx.MockTransport(handle)).generate_task([],**(task()|{
@@ -87,3 +88,30 @@ def test_chapters_are_read_from_selected_subject_file_titles_without_chunk_searc
         return httpx.Response(200,json={'code':200,'data':data})
     config=settings();config.datasets=[{'id':'root','type':'folder'}];config.timeout=30
     assert KnowledgeLibrary(config,httpx.MockTransport(handle)).chapters('化学') == ['第一章 物质及其变化','第二章 海水中的重要元素——钠和氯']
+
+
+def test_chapter_options_use_the_same_snapshot_as_the_library_browser(tmp_path, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from backend.app.config import Settings
+    from backend.app.study_guide.storage.store import Store
+    from backend.app.study_guide.api.routes import make_router
+    from backend.app.shared.knowledge.library import KnowledgeLibrary
+    documents = [
+        {'id':'c1','subject':'化学','dataset_id':'chem','dataset_name':'化学教材','title':'化学 第一章 物质及其变化.pdf','chunks':[]},
+        {'id':'c2','subject':'化学','dataset_id':'chem','dataset_name':'化学教材','title':'化学 第一章 物质及其变化.pptx','chunks':[]},
+        {'id':'m1','subject':'数学','dataset_id':'math','dataset_name':'数学教材','title':'数学 第一章 集合.pdf','chunks':[]},
+    ]
+    monkeypatch.setattr(KnowledgeLibrary, 'synchronize', lambda _:documents)
+    monkeypatch.setattr(KnowledgeLibrary, 'chapters', lambda *_:pytest.fail('已有浏览快照时不应另查远端目录'))
+    config = Settings(data_dir=tmp_path)
+    app = FastAPI()
+    app.include_router(make_router(config, Store(tmp_path/'test.sqlite'), None))
+    client = TestClient(app)
+    client.post('/api/library/sync').raise_for_status()
+    assert client.get('/api/library/chapters?subject=化学').json()['chapters'] == ['第一章 物质及其变化']
+    assert client.get('/api/library/chapters?subject=数学').json()['chapters'] == ['第一章 集合']
+    assert client.get('/api/library/chapters?subject=物理').json()['chapters'] == []
+    documents[:] = [dict(documents[0], title='化学 第二章 钠和氯.pdf')]
+    client.post('/api/library/sync').raise_for_status()
+    assert client.get('/api/library/chapters?subject=化学').json()['chapters'] == ['第二章 钠和氯']
