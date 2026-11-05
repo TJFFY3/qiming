@@ -366,7 +366,7 @@ export function ConversationView({
         <div className="assistant-main">
           <div className="agent-caption">
             <BadgeCheck size={16} />
-            启鸣 AI · {product === "导学案" ? "教学设计" : product}
+            Fast AI· {product === "导学案" ? "教学设计" : product}
             <span>基于知识库与教学规范</span>
           </div>
           {workbench ? (

@@ -195,7 +195,7 @@ export default function Composer<
           {conversation ? (
             <span className="agent-label">
               <Sparkles size={19} />
-              启鸣 AI · {product === "导学案" ? "教学设计" : product}
+              Fast AI· {product === "导学案" ? "教学设计" : product}
             </span>
           ) : !workbench && (
             <button
