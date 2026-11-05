@@ -354,7 +354,7 @@ export function ConversationView({
           ? messages.filter((m) => m.role === "user" || m.role === "assistant")
           : [{ role: "user", content: request }]).map((message, index) => (
           <div key={index} className={message.role === "user" ? "user-bubble" : "assistant-message"}>
-            {message.role === "assistant" && <small>启鸣 AI</small>}
+            {message.role === "assistant" && <small>Fast AI</small>}
             <div>{message.content}</div>
           </div>
         ))}
