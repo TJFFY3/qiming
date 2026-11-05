@@ -3,6 +3,9 @@
 """
 
 overrides = {
+    # 新生成链路使用统一工作流，可按需覆盖连接与标签条件：
+    # 'workflow_app_id': '6ae34b10b1b18f9bb876d8ac',
+    # 'repo_label_config': {},
     # 'model_provider': 'fastgpt',
     # 'fastgpt_app_id': '课件专用应用ID',
     # 'fastgpt_url': 'https://你的FastGPT域名/api',

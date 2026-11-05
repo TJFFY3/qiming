@@ -63,7 +63,7 @@ def test_page_boundary_never_separates_a_coefficient_from_its_formula(tmp_path):
 def test_explicit_page_count_remains_visible_as_a_conflict_after_pagination(tmp_path):
     app, _ = app_for(tmp_path, [crowded()])
     with TestClient(app) as client:
-        sid = client.post(PREFIX + '/sessions', json={}).json()['id']
+        sid = client.post(PREFIX + '/sessions', json={"chapter":"第三节 氧化还原反应"}).json()['id']
         job = client.post(f'{PREFIX}/sessions/{sid}/generate', json={'prompt': '生成1页课件'}).json()
         done = client.get(PREFIX + '/jobs/' + job['id']).json()
         version = client.get(f'{PREFIX}/sessions/{sid}/versions/'+done['version_id']).json()
@@ -74,7 +74,7 @@ def test_explicit_page_count_remains_visible_as_a_conflict_after_pagination(tmp_
 def test_generation_automatically_paginates_instead_of_three_failed_model_calls(tmp_path):
     app,requests=app_for(tmp_path,[crowded()])
     with TestClient(app) as client:
-        sid=client.post(PREFIX+'/sessions',json={}).json()['id']
+        sid=client.post(PREFIX+'/sessions',json={"chapter":"第三节 氧化还原反应"}).json()['id']
         job=client.post(f'{PREFIX}/sessions/{sid}/generate',json={'prompt':'生成课件'}).json()
         done=client.get(PREFIX+'/jobs/'+job['id']).json()
         assert done['status']=='completed',done

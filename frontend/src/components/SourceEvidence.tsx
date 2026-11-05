@@ -6,6 +6,8 @@ import { convertSourceImage } from "../metafile";
 
 function safeImageUrl(value: string | undefined): string | undefined {
   if (!value) return undefined;
+  // 分块图片经后端缓存与续签，只允许这一类稳定的同源预览地址。
+  if (/^\/api\/library\/images\/[0-9a-f]{24}\/\d+(?:\?v=[0-9a-f]{16})?$/.test(value)) return value;
   try {
     const url = new URL(value);
     return ["https:", "http:"].includes(url.protocol) &&

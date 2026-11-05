@@ -85,6 +85,7 @@ test("switching agents preserves separate drafts and submits only to the coursew
       const body =
         typeof init?.body === "string" ? JSON.parse(init.body) : null;
       requests.push({ url, body });
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第一章 物质及其变化"]});
       if (url.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
       if (url === "/api/courseware/sessions" && init?.method === "POST")
@@ -143,6 +144,7 @@ test("switching agents preserves separate drafts and submits only to the coursew
   expect(
     screen.queryByRole("checkbox", { name: "以待核验草案生成" }),
   ).toBeNull();
+  await waitFor(() => expect((screen.getByRole("button",{name:"生成互动课件"}) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "生成互动课件" }));
   await waitFor(() =>
     expect(

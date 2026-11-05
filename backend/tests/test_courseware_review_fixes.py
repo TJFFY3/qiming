@@ -13,7 +13,7 @@ from backend.tests.test_courseware import PREFIX, app_for, deck
 
 
 def initial(client):
-    sid = client.post(PREFIX + "/sessions", json={}).json()["id"]
+    sid = client.post(PREFIX + "/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
     job = client.post(f"{PREFIX}/sessions/{sid}/generate", json={}).json()
     assert client.get(PREFIX + "/jobs/" + job["id"]).json()["status"] == "completed"
     return sid, client.get(f"{PREFIX}/sessions/{sid}").json()["versions"][-1]

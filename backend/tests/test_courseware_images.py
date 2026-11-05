@@ -53,7 +53,7 @@ def test_revision_reuses_snapshot_offline_and_rejects_unknown_ids(tmp_path):
 def test_image_endpoint_serves_only_referenced_version_snapshots(tmp_path):
     app,_=app_for(tmp_path,[deck()])
     with TestClient(app) as c:
-        sid=c.post(PREFIX+'/sessions',json={}).json()['id']
+        sid=c.post(PREFIX+'/sessions',json={"chapter":"第三节 氧化还原反应"}).json()['id']
         job=c.post(f'{PREFIX}/sessions/{sid}/generate',json={'prompt':'课件'}).json()
         vid=c.get(PREFIX+'/jobs/'+job['id']).json()['version_id']
         import sqlite3
@@ -80,7 +80,7 @@ def test_pipeline_exports_images_and_download_failure_does_not_retry_model(tmp_p
     for available in (True,False):
         store=CoursewareStore(tmp_path/str(available)/'agent.sqlite')
         from backend.app.courseware.domain.models import CoursewareSettings
-        session=store.create_session(CoursewareSettings().model_dump())
+        session=store.create_session(CoursewareSettings(chapter="第三节 氧化还原反应").model_dump())
         calls=[]
         class Model:
             def generate_json(self,messages):

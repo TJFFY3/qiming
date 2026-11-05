@@ -1,8 +1,30 @@
 """【知识库调用·共享】同步完整资料目录、读取文档片段及原文地址，供资料浏览使用。"""
 
 import hashlib
+import re
 from urllib.parse import urlsplit
 import httpx
+from .subjects import dataset_subject
+
+
+def _chapter_title(title, subject):
+    title = re.sub(r'\.(?:pdf|docx?|pptx?|txt|md)$', '', title, flags=re.I).strip()
+    marker = re.search(r'第[一二三四五六七八九十百0-9]+(?:章|节|单元|课)|Unit\s*\d+', title, flags=re.I)
+    return title[marker.start():] if marker else re.sub(r'^' + re.escape(subject) + r'[\s·—_：:]*', '', title)
+
+
+def chapters_from_documents(documents, subject):
+    """【目录规则】章节选项与资料浏览共用快照，按学科过滤并合并同名文件。"""
+    from .subjects import SUBJECTS
+    if subject not in SUBJECTS:
+        raise ValueError('不支持的学科')
+    annotated = [(document, dataset_subject({
+        'subject': document.get('subject'), 'name': document.get('dataset_name', ''),
+    })) for document in documents]
+    legacy = not any(label for _, label in annotated) and subject == '化学'
+    titles = [_chapter_title(document.get('title', ''), subject)
+              for document, label in annotated if label == subject or legacy]
+    return list(dict.fromkeys(title for title in titles if title))
 
 
 class KnowledgeLibrary:
@@ -45,6 +67,37 @@ class KnowledgeLibrary:
             if not items:
                 raise ValueError("知识库分页未完整返回，请重新同步")
 
+    def datasets(self):
+        from backend.app.shared.workflow.datasets import expand_datasets
+        with httpx.Client(timeout=self.settings.timeout, transport=self.transport) as client:
+            return expand_datasets(client, self.base, self.settings.fastgpt_key, self.settings.datasets, max_datasets=1000)
+
+    def chapters(self, subject):
+        """【目录调用】只读当前学科的知识库文件标题，不下载原文或扫描片段。"""
+        from .subjects import SUBJECTS, select_subject_datasets
+        if subject not in SUBJECTS:
+            raise ValueError('不支持的学科')
+        datasets = select_subject_datasets(self.datasets(), subject)
+        chapters, visited = [], set()
+        with httpx.Client(timeout=self.settings.timeout, transport=self.transport) as client:
+            def scan(dataset_id, parent=None):
+                identity = (dataset_id, parent)
+                if identity in visited:
+                    return
+                visited.add(identity)
+                if len(visited) > 100:
+                    raise ValueError('知识库目录层级过多，请缩小配置范围')
+                for item in self._pages(client, 'collection/listV2', {'datasetId':dataset_id, 'parentId':parent, 'searchText':''}):
+                    if item.get('type') == 'folder':
+                        scan(dataset_id, item['_id'])
+                        continue
+                    title = _chapter_title(item.get('name', ''), subject)
+                    if title and title not in chapters:
+                        chapters.append(title)
+            for dataset in datasets:
+                scan(dataset['id'])
+        return chapters
+
     # 【知识库入口】全量目录同步用于浏览，独立于本次任务的语义召回。
     def synchronize(self):
         if not self.settings.datasets:
@@ -82,6 +135,7 @@ class KnowledgeLibrary:
                                     f"{dataset['id']}:{hid}".encode()
                                 ).hexdigest()[:24],
                                 "dataset_name": dataset.get("name", "知识库"),
+                            "subject": dataset_subject(dataset),
                                 "hit_id": hid,
                                 "collection_id": cid,
                                 "dataset_id": dataset["id"],
@@ -100,6 +154,7 @@ class KnowledgeLibrary:
                             "title": title,
                             "dataset_id": dataset["id"],
                             "dataset_name": dataset.get("name", "知识库"),
+                            "subject": dataset_subject(dataset),
                             "kind": "presentation"
                             if title.lower().endswith((".ppt", ".pptx"))
                             else "document",
@@ -121,6 +176,7 @@ class KnowledgeLibrary:
                                 "id": child["_id"],
                                 "name": child.get("name", "知识库"),
                                 "type": child.get("type", "dataset"),
+                                "subject": dataset_subject({"name": child.get("name", "")}) or dataset_subject(dataset),
                             }
                         )
                 else:

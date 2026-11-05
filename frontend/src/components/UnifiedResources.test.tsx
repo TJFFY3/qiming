@@ -28,18 +28,18 @@ const agents = [
   { name: "导学案", prefix: "/api", Component: Resources },
   {
     name: "限时练习",
-    prefix: "/api/timed-practice",
+    prefix: "/api",
     Component: PracticeResources,
   },
   {
     name: "互动课件",
-    prefix: "/api/courseware",
+    prefix: "/api",
     Component: CoursewareResources,
   },
 ];
 
 test.each(agents)(
-  "$name library uses the guide interaction and its own original-file endpoint",
+  "$name library uses the guide interaction and the shared original-file endpoint",
   async ({ Component, prefix }) => {
     vi.stubGlobal(
       "fetch",
@@ -54,6 +54,8 @@ test.each(agents)(
               id: "book",
               title: "知识库教材.pdf",
               dataset_name: "教材库",
+              subject: "数学",
+              dataset_id: "math-dataset",
               kind: "document",
               chunks: [
                 {
@@ -79,10 +81,13 @@ test.each(agents)(
       />,
     );
     expect(screen.getByRole("dialog", { name: "资料库" })).toBeTruthy();
-    expect(screen.getByText("添加本课参考资料")).toBeTruthy();
-    fireEvent.click(
-      await screen.findByRole("button", { name: /知识库教材.pdf/ }),
-    );
+    expect(screen.queryByText("添加本课参考资料")).toBeNull();
+    expect(screen.queryByText(/^浏览 FastGPT 知识库/)).toBeNull();
+    fireEvent.click(screen.getByRole("tab",{name:"数学"}));
+    const file = await screen.findByRole("button", {name:/知识库教材.pdf/});
+    expect(screen.getByRole("tab",{name:"数学"}).getAttribute("aria-selected")).toBe("true");
+    expect(file.closest(".library-dataset-folder")?.querySelector("summary")?.textContent).toContain("教材库");
+    fireEvent.click(file);
     expect(
       screen.getByRole("link", { name: "下载原文件" }).getAttribute("href"),
     ).toBe(`${prefix}/library/book/original`);
@@ -121,7 +126,7 @@ test.each(agents)(
 );
 
 test.each(agents)(
-  "$name automatically syncs its own catalog and keeps it visible after a failed refresh",
+  "$name automatically syncs the shared catalog and keeps it visible after a failed refresh",
   async ({ Component, prefix }) => {
     let synchronized = false;
     vi.stubGlobal(

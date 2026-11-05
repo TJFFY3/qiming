@@ -1,5 +1,7 @@
 """【流程编排·限时练习】串联需求解析、题源整理、模型、内容规则与双 Word 生成。"""
 
+from backend.app.shared.workflow.binding import generate as workflow_generate
+
 import copy
 import json
 import shutil
@@ -39,9 +41,9 @@ class PracticePipeline:
         stages.append(dict(label=label, status="running", started_at=now()))
         self.store.update_job(jid, status="running", stages=stages)
 
-    def model_call(self, jid, messages, attempt):
+    def model_call(self, jid, messages, attempt, task=None):
         streaming = getattr(self.model, "generate_json_with_progress", None)
-        if not streaming:
+        if not streaming and task is None:
             return self.model.generate_json(messages)
         initial = self.store.get_job(jid)["stages"][-1]["label"].split("（已接收")[0]
 
@@ -56,6 +58,8 @@ class PracticePipeline:
                 jid, model_progress={**value, "attempt": attempt + 1}, stages=stages
             )
 
+        if task is not None:
+            return workflow_generate(self.model, messages, on_progress=update, **task)
         return streaming(messages, update)
 
     def run(self, jid):
@@ -117,7 +121,7 @@ class PracticePipeline:
                 # 【知识库调用】首次生成按本课信息检索，上传资料稍后合并。
                 hits = (
                     self.retriever.search(query)
-                    if self.settings.fastgpt_url or not request["resources"]
+                    if self.retriever is not None and (self.settings.fastgpt_url or not request["resources"])
                     else []
                 )
                 old = {s["id"]: s for s in session["sources"]}
@@ -184,7 +188,11 @@ class PracticePipeline:
             # 【模型调用与修复】首次生成 + 最多两轮 JSON 或内容修复。
             for attempt in range(3):
                 try:
-                    raw = self.model_call(jid, messages, attempt)
+                    raw = self.model_call(jid, messages, attempt, task=dict(
+                        agent_category="限时练习", teacher_settings=request["teacher_settings"],
+                        prompt=request["prompt"], operation="微调" if revision else "初始化",
+                        sources=sources, requirements=requirements,
+                    ))
                 except ModelOutputError as exc:
                     diagnostics = self.settings.data_dir / sid / "diagnostics" / jid
                     diagnostics.mkdir(parents=True, exist_ok=True)
@@ -277,6 +285,7 @@ class PracticePipeline:
             )
             self.stage(jid, "保存限时练习不可变版本")
             # 【状态存储】同时保存需求、来源和两份产物对应的不可变版本。
+            self.store.update_session(sid, lambda s: s.update(sources=sources))
             self.store.publish(jid, version)
         except Exception as exc:
             if destination and destination.exists():

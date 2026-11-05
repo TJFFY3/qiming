@@ -1,3 +1,4 @@
+import AgentWorkbench from "../../../components/AgentWorkbench";
 /** 【界面编排】导学案独立页面：会话、任务轮询、资料与版本交互。 */
 import { useCallback, useEffect, useState, useRef } from "react";
 import {
@@ -29,7 +30,6 @@ import Modal from "../../../components/Modal";
 import {
   AgentHomeHeader,
   AgentHero,
-  LessonToolbar,
   AgentHomeFooter,
   AppliedOptions,
 } from "../../../components/AgentHome";
@@ -66,7 +66,12 @@ export default function StudyGuideAgent({
     [notice, setNotice] = useState("");
   const requestRef = useRef(false);
   const returnHomeRef = useRef(false);
-  const busy = sending || job?.status === "running" || job?.status === "queued";
+  const updateSettings = (next: Settings) => {
+    if ((next.subject || "化学") !== (settings.subject || "化学")) { resetDraft(true); setPrompt(""); }
+    setSettings(next);
+  };
+  const [uploading, setUploading] = useState(false);
+  const busy = uploading || sending || job?.status === "running" || job?.status === "queued";
   const version =
     session?.versions.find((v) => v.id === versionId) ||
     session?.versions.at(-1);
@@ -204,6 +209,7 @@ export default function StudyGuideAgent({
     }
   };
   const loadSession = async (id: string) => {
+    if (busy) return;
     try {
       const s = await api<Session>("/sessions/" + id);
       setSession(s);
@@ -224,12 +230,16 @@ export default function StudyGuideAgent({
   };
   // 【资料接口】上传本课资料，由后端提取文本并纳入后续来源。
   const upload = async (file: File, category: string) => {
-    const s = await ensureSession();
-    const form = new FormData();
-    form.append("file", file);
-    form.append("category", category);
-    await api(`/sessions/${s.id}/resources`, { method: "POST", body: form });
-    setSession(await api<Session>("/sessions/" + s.id));
+    if (busy) return;
+    setUploading(true);
+    try {
+      const s = await ensureSession();
+      const form = new FormData();
+      form.append("file", file);
+      form.append("category", category);
+      await api(`/sessions/${s.id}/resources`, { method: "POST", body: form });
+      setSession(await api<Session>("/sessions/" + s.id));
+    } finally { setUploading(false); }
   };
   const deleteResource = async (resourceId: string) => {
     if (!session) return;
@@ -301,6 +311,10 @@ export default function StudyGuideAgent({
       job?.base_version_id || undefined,
     );
   return (
+    <AgentWorkbench onUpload={upload} attachments={session?.resources || []} agent="guide" ready={!!health?.ready} busy={busy} job={job}
+      onResources={() => setModal("resources")} onHistory={() => void openHistory()}
+      onNew={newSession} onHome={returnHome}
+      onAgentChange={(kind) => { if (kind === "courseware") onCourseware(); else if (kind === "practice") onPractice(); }}>
     <div
       className={"app " + (page === "conversation" ? "conversation-page" : "")}
     >
@@ -357,16 +371,10 @@ export default function StudyGuideAgent({
                 }}
               />
             )}
-            <LessonToolbar
-              settings={settings}
-              onSettings={setSettings}
-              onResources={() => setModal("resources")}
-              busy={busy}
-              uploadCount={session?.resources.length || 0}
-            />
+
             <Composer
               settings={settings}
-              onSettings={setSettings}
+              onSettings={updateSettings}
               prompt={prompt}
               onPrompt={setPrompt}
               onSubmit={() => void submit()}
@@ -409,7 +417,7 @@ export default function StudyGuideAgent({
             <Composer
               conversation
               settings={settings}
-              onSettings={setSettings}
+              onSettings={updateSettings}
               prompt={prompt}
               onPrompt={setPrompt}
               onSubmit={() => void submit()}
@@ -457,7 +465,7 @@ export default function StudyGuideAgent({
         />
       )}
       {modal === "history" && (
-        <Modal title="历史备课" onClose={closeModal} className="history-modal">
+        <Modal placement="sidebar" title="历史备课" onClose={closeModal} className="history-modal">
           <div className="modal-scroll">
             {history.length ? (
               history.map((s) => (
@@ -498,5 +506,6 @@ export default function StudyGuideAgent({
         </div>
       )}
     </div>
+    </AgentWorkbench>
   );
 }

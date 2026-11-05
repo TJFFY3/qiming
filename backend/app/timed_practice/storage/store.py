@@ -46,6 +46,9 @@ class PracticeStore:
         return json.loads(row[0])
 
     def write(self, db, table, value):
+        if table == "jobs":
+            from backend.app.shared.tasks.timing import record_job_timing
+            record_job_timing(value, self.read(db, table, value["id"]), now())
         db.execute(
             f"UPDATE {table} SET data=? WHERE id=?",
             (json.dumps(value, ensure_ascii=False, allow_nan=False), value["id"]),

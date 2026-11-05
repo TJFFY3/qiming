@@ -19,7 +19,9 @@ class Options(BaseModel):
 
 class SessionInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    chapter: str = Field("第三节 氧化还原反应", min_length=1, max_length=200)
+    subject: Literal["语文", "数学", "英语", "物理", "化学", "生物", "政治", "历史", "地理"] = "化学"
+    # 章节由教师选择或知识库目录提供，缺失时拒绝请求，不补固定课题。
+    chapter: str = Field(min_length=1, max_length=200)
     period: str = Field("第一课时", min_length=1, max_length=100)
     edition: str = Field("人教版 必修第一册", min_length=1, max_length=200)
     grade: str = Field("高一", min_length=1, max_length=50)

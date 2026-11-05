@@ -8,7 +8,6 @@ export default function Resources(
   return (
     <SharedResources
       {...props}
-      libraryPath="/timed-practice"
       productName="限时练习"
     />
   );

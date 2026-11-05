@@ -1,5 +1,7 @@
 """【接口层·互动课件】管理课件会话、资料、后台任务、预览与下载入口。"""
 
+from backend.app.shared.workflow.binding import missing_workflow_settings
+
 import json
 import re
 import uuid
@@ -43,12 +45,7 @@ def make_router(settings, store, pipeline):
 
     @router.get("/health")
     def health():
-        needed = (
-            ["fastgpt_app_id", "fastgpt_url", "fastgpt_key"]
-            if settings.model_provider == "fastgpt"
-            else ["model_url", "model_key", "model"]
-        )
-        missing = [name for name in needed if not getattr(settings, name)]
+        missing = missing_workflow_settings(settings)
         return dict(ready=not missing, missing=missing)
 
     @router.get("/sessions")

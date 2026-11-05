@@ -1,5 +1,7 @@
 """【流程编排·导学案】串联资料、提示词、模型、规则和 Word 工具；校验通过后发布版本。"""
 
+from backend.app.shared.workflow.binding import generate as workflow_generate
+
 import copy
 import json
 import shutil
@@ -119,7 +121,7 @@ class Pipeline:
                     + instruction_text(request.get("prompt", ""))
                 )
                 # 【知识库规则】显式配置 FastGPT 后必须检索成功，不能用上传资料掩盖连接失败。
-                if session["resources"] and not self.settings.fastgpt_url:
+                if self.retriever is None or (session["resources"] and not self.settings.fastgpt_url):
                     sources = []
                 else:
                     # 【知识库调用】返回来源证据，不是教学内容生成。
@@ -145,7 +147,7 @@ class Pipeline:
                     "资料总量超过120000字符，请减少上传资料或缩小检索范围"
                 )
             self.store.update_session(sid, lambda s: s.update(sources=sources))
-            if not sources and not revision:
+            if not sources and not revision and self.retriever is not None:
                 raise ValueError(
                     "未检索到本课资料，请调整章节、上传资料或检查知识库"
                 )
@@ -193,6 +195,13 @@ class Pipeline:
             version_id = uuid.uuid4().hex
             destination = self.settings.data_dir / sid / "versions" / version_id
             version_name = f"v{number:03d}"
+            def call_model(call_messages):
+                return workflow_generate(
+                    self.model, call_messages, agent_category="导学案",
+                    teacher_settings=teacher_settings, prompt=request["prompt"],
+                    operation="微调" if revision else "初始化", sources=sources,
+                )
+
             result = None
             last_error = None
             raw, target, repairs = None, None, []
@@ -203,7 +212,7 @@ class Pipeline:
                 equation_response = None
                 try:
                     if equation_targets is not None:
-                        equation_response = self.model.generate_json(
+                        equation_response = call_model(
                             equation_repair_messages(equation_targets, context={
                                 "teacher_request": request["prompt"], "teacher_settings": teacher_settings,
                                 "sources": revision_source_context(sources, "\n".join(str(t["value"]) for t in equation_targets)),
@@ -213,7 +222,7 @@ class Pipeline:
                         repairs.extend(notes)
                         equation_targets, equation_feedback = None, []
                     elif target is not None:
-                        response = self.model.generate_json(
+                        response = call_model(
                             header_repair_messages(target) + header_feedback
                         )
                         raw, note = apply_header_repair(raw, target, response)
@@ -221,7 +230,7 @@ class Pipeline:
                         target = None
                         header_feedback = []
                     else:
-                        raw = self.model.generate_json(messages)
+                        raw = call_model(messages)
                         repairs = []
                     # 【规则处理】先做确定性格式修复，再验证方程式和学生正文。
                     raw, chemistry_repairs = normalize_chemistry(raw)
@@ -386,6 +395,7 @@ class Pipeline:
                 "report": result,
             }
             # 【状态存储】完整内容与产物就绪后才发布，避免暴露半成品版本。
+            self.store.update_session(sid, lambda s: s.update(sources=sources))
             self.store.publish(job_id, version)
             published = True
         except Exception as exc:

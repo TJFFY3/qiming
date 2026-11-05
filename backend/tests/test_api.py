@@ -25,7 +25,7 @@ def test_health_and_session(tmp_path):
 
 def test_upload_and_review(tmp_path):
     with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
-        sid = client.post("/api/sessions", json={}).json()["id"]
+        sid = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         response = client.post(
             f"/api/sessions/{sid}/resources",
             files={"file": ("教材.txt", "教材原文".encode(), "text/plain")},
@@ -53,7 +53,7 @@ def test_upload_and_review(tmp_path):
 
 def test_unknown_review_and_invalid_revision(tmp_path):
     with TestClient(create_app(Settings(data_dir=tmp_path))) as client:
-        sid = client.post("/api/sessions", json={}).json()["id"]
+        sid = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         assert (
             client.post(
                 f"/api/sessions/{sid}/sources/fake/review",
@@ -94,7 +94,7 @@ def test_full_library_is_independent_of_session_recall(tmp_path, monkeypatch):
     )
     app = create_app(Settings(data_dir=tmp_path))
     with TestClient(app) as client:
-        sid = client.post("/api/sessions", json={}).json()["id"]
+        sid = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         assert client.get("/api/library").json()["synced_at"] is None
         result = client.post("/api/library/sync").json()
         assert result["documents"] == docs
@@ -131,7 +131,7 @@ def test_failed_full_sync_retains_previous_catalog(tmp_path, monkeypatch):
 def test_delete_uploaded_resource_removes_active_sources_only(tmp_path):
     app = create_app(Settings(data_dir=tmp_path))
     with TestClient(app) as client:
-        sid = client.post("/api/sessions", json={}).json()["id"]
+        sid = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         source = client.post(
             f"/api/sessions/{sid}/resources",
             files={"file": ("教材.txt", "保留历史原文".encode(), "text/plain")},
@@ -154,7 +154,7 @@ def test_delete_uploaded_resource_removes_active_sources_only(tmp_path):
             client.delete(f"/api/sessions/{sid}/resources/{source['id']}").status_code
             == 404
         )
-        other = client.post("/api/sessions", json={}).json()["id"]
+        other = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         assert (
             client.delete(f"/api/sessions/{other}/resources/kb-hit").status_code == 404
         )
@@ -163,7 +163,7 @@ def test_delete_uploaded_resource_removes_active_sources_only(tmp_path):
 def test_deleting_resource_during_generation_is_rejected(tmp_path):
     app = create_app(Settings(data_dir=tmp_path))
     with TestClient(app) as client:
-        sid = client.post("/api/sessions", json={}).json()["id"]
+        sid = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         source = client.post(
             f"/api/sessions/{sid}/resources",
             files={"file": ("教材.txt", b"evidence", "text/plain")},
@@ -196,7 +196,7 @@ def test_historical_guide_downloads_remove_review_labels_without_changing_saved_
 
     app = create_app(Settings(data_dir=tmp_path))
     with TestClient(app) as client:
-        sid = client.post("/api/sessions", json={}).json()["id"]
+        sid = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         directory = tmp_path / sid / "versions" / "old"
         sample = json.loads(
             __import__("pathlib")

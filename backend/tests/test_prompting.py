@@ -25,11 +25,11 @@ def test_agent_submission_stores_the_same_complete_prompt_for_history_and_execut
 ):
     if agent == "courseware":
         store = CoursewareStore(tmp_path / "courseware.sqlite")
-        settings = CoursewareSettings().model_dump()
+        settings = CoursewareSettings(chapter="第三节 氧化还原反应").model_dump()
         marker, end, label = "【课件优化提示】", "【课件优化结束】", "课堂时长"
     else:
         store = PracticeStore(tmp_path / "practice.sqlite")
-        settings = LessonSettings().model_dump()
+        settings = LessonSettings(chapter="第三节 氧化还原反应").model_dump()
         marker, end, label = "【限时练习优化设置】", "【限时练习优化设置结束】", "用时"
     session = store.create_session(settings)
     prompt = f"请增加分层任务。\n\n{marker}\n{label}：25 分钟\n{end}"

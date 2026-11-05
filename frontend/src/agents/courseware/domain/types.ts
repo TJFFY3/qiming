@@ -18,6 +18,7 @@ export const defaultOptions = (): CoursewareOptions => ({
   extra: "",
 });
 export type CoursewareSettings = {
+  subject?: string;
   chapter: string;
   period: string;
   edition: string;
@@ -26,7 +27,8 @@ export type CoursewareSettings = {
   options: CoursewareOptions;
 };
 export const defaultSettings = (): CoursewareSettings => ({
-  chapter: "第三节 氧化还原反应",
+  subject: "化学",
+  chapter: "",
   period: "第一课时",
   edition: "人教版 必修第一册",
   grade: "高一",

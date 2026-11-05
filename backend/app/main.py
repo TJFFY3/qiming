@@ -7,15 +7,13 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from backend.app.config import settings as default_settings
 from backend.app.study_guide.storage.store import Store, Conflict
-from backend.app.shared.knowledge.retrieval import FastGPTRetriever
-from backend.app.study_guide.llm.client import ModelClient
+from backend.app.shared.workflow.client import WorkflowClient
 from backend.app.study_guide.tools.documents import DocumentEngine
 from backend.app.study_guide.application.pipeline import Pipeline
 from backend.app.study_guide.api.routes import make_router
 from backend.app.courseware.configuration.settings import resolve_settings
 from backend.app.courseware.storage.store import CoursewareStore, CoursewareConflict
 from backend.app.courseware.application.pipeline import CoursewarePipeline
-from backend.app.courseware.llm.client import CoursewareModelClient
 from backend.app.courseware.api.routes import make_router as make_courseware_router
 
 
@@ -28,8 +26,8 @@ def create_app(settings=None, pipeline_factory=None, courseware_factory=None, pr
         else Pipeline(
             settings,
             store,
-            FastGPTRetriever(settings),
-            ModelClient(settings),
+            None,
+            WorkflowClient(settings),
             DocumentEngine(settings=settings),
         )
     )
@@ -41,7 +39,7 @@ def create_app(settings=None, pipeline_factory=None, courseware_factory=None, pr
         if courseware_factory
         else CoursewarePipeline(
             courseware_settings, courseware_store,
-            FastGPTRetriever(courseware_settings), CoursewareModelClient(courseware_settings),
+            None, WorkflowClient(courseware_settings),
         )
     )
 

@@ -1,9 +1,8 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
-  Upload,
   BookOpen,
-  FileText,
   LoaderCircle,
+  FileText,
   ChevronDown,
   Trash2,
 } from "lucide-react";
@@ -13,11 +12,7 @@ import KnowledgeLibrary from "./KnowledgeLibrary";
 import { sourceNotes, sourceTitle } from "../sourceDisplay";
 import SourceEvidence from "./SourceEvidence";
 const categories: Record<string, string> = {
-  textbook: "教材",
-  teacher_book: "教师用书",
-  exercises: "课时题库",
-  practice: "必刷题",
-  exam: "高考真题",
+  textbook: "教材", teacher_book: "教师用书", exercises: "课时题库", practice: "必刷题", exam: "高考真题",
 };
 export type ResourcesProps = {
   sources: Source[];
@@ -35,7 +30,6 @@ export type ResourcesProps = {
 export default function Resources({
   sources,
   resources,
-  onUpload,
   onDelete,
   onClose,
   busy,
@@ -46,10 +40,6 @@ export default function Resources({
   productName = "导学案",
 }: ResourcesProps) {
   const notes = sourceNotes(sourceIssues);
-  const [category, setCategory] = useState("textbook");
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState("");
-  const input = useRef<HTMLInputElement>(null);
   const close = useCallback(onClose, [onClose]);
   const all = Array.from(
     new Map(
@@ -58,22 +48,10 @@ export default function Resources({
       ),
     ).values(),
   );
-  const upload = async (file: File) => {
-    if (busy || uploading) return;
-    setUploading(true);
-    setError("");
-    try {
-      if (file.size > 20 * 1024 * 1024) throw new Error("文件超过20MB");
-      await onUpload(file, category);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setUploading(false);
-      if (input.current) input.current.value = "";
-    }
-  };
   return (
     <Modal
+      placement="sidebar"
+      hideHeader={!snapshot && !recall}
       title={
         snapshot
           ? "当前版本 · 来源快照"
@@ -85,62 +63,7 @@ export default function Resources({
       className="resource-modal"
     >
       <div className="modal-scroll">
-        <p className="panel-description">
-          {snapshot || recall
-            ? `此处仅保留本次${productName}生成使用的命中片段。`
-            : `浏览 FastGPT 知识库全部资料与片段，包括 PPT；${productName}生成时按需求检索。`}
-        </p>
-        {!snapshot && !recall && (
-          <div
-            className="upload-zone"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (!busy && !uploading && e.dataTransfer.files[0])
-                void upload(e.dataTransfer.files[0]);
-            }}
-          >
-            <div className="upload-icon">
-              <Upload size={25} />
-            </div>
-            <h3>添加本课参考资料</h3>
-            <p>支持 TXT、Markdown、DOCX、文字 PDF，单份不超过 20MB</p>
-            <div>
-              <select
-                aria-label="上传资料类型"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {Object.entries(categories).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="button primary"
-                disabled={uploading || busy}
-                onClick={() => input.current?.click()}
-              >
-                {uploading ? (
-                  <LoaderCircle className="spin" size={16} />
-                ) : (
-                  <Upload size={16} />
-                )}
-                选择文件
-              </button>
-            </div>
-            <input
-              ref={input}
-              hidden
-              type="file"
-              accept=".txt,.md,.docx,.pdf"
-              onChange={(e) => {
-                if (e.target.files?.[0]) void upload(e.target.files[0]);
-              }}
-            />
-          </div>
-        )}
+        {(snapshot || recall) && <p className="panel-description">此处仅保留本次{productName}生成使用的命中片段。</p>}
         {!snapshot && !recall && <KnowledgeLibrary libraryPath={libraryPath} />}
         {notes.length > 0 && (
           <div className="source-issues">
@@ -151,11 +74,6 @@ export default function Resources({
               ))}
             </ul>
           </div>
-        )}
-        {error && (
-          <p className="inline-error" role="alert">
-            {error}
-          </p>
         )}
         <div className="source-list-header">
           <h3>{snapshot || recall ? "本次命中片段" : "本课上传资料"}</h3>
@@ -179,7 +97,7 @@ export default function Resources({
           <div className="empty-state">
             <BookOpen size={32} />
             <h3>{snapshot ? "暂无命中片段" : "尚未上传本课资料"}</h3>
-            <p>可以上传教材或教师用书作为本课补充资料。</p>
+            <p>可在对话框发送按钮左侧上传附件。</p>
           </div>
         )}
       </div>

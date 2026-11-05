@@ -1,3 +1,4 @@
+import AgentWorkbench from "../../../components/AgentWorkbench";
 /** 【界面编排·限时练习】管理练习会话、任务轮询、题目与答案预览。 */
 import { useEffect, useRef, useState } from "react";
 import { ListChecks, Library, Sparkles, X } from "lucide-react";
@@ -20,7 +21,6 @@ import "../styles/practice.css";
 import {
   AgentHomeHeader,
   AgentHero,
-  LessonToolbar,
   AgentHomeFooter,
   AppliedOptions,
 } from "../../../components/AgentHome";
@@ -67,7 +67,12 @@ export default function PracticeApp({
   const [homeRequested, setHomeRequested] = useState(false);
   const locked = useRef(false),
     creating = useRef<Promise<Session> | null>(null);
-  const busy = sending || job?.status === "queued" || job?.status === "running";
+  const updateSettings = (next: Settings) => {
+    if ((next.subject || "化学") !== (settings.subject || "化学")) { reset(); setPrompt(""); }
+    setSettings(next);
+  };
+  const [uploading, setUploading] = useState(false);
+  const busy = uploading || sending || job?.status === "queued" || job?.status === "running";
   const version =
       session?.versions.find((v) => v.id === versionId) ||
       session?.versions.at(-1),
@@ -272,15 +277,19 @@ export default function PracticeApp({
   }
   // 【资料接口】提交本课文件，题源提取与校验由后端执行。
   async function upload(file: File, category: string) {
-    const s = await ensureSession();
-    const form = new FormData();
-    form.append("file", file);
-    form.append("category", category);
-    await request(`/sessions/${s.id}/resources`, {
-      method: "POST",
-      body: form,
-    });
-    await refresh(s.id);
+    if (busy) return;
+    setUploading(true);
+    try {
+      const s = await ensureSession();
+      const form = new FormData();
+      form.append("file", file);
+      form.append("category", category);
+      await request(`/sessions/${s.id}/resources`, {
+        method: "POST",
+        body: form,
+      });
+      await refresh(s.id);
+    } finally { setUploading(false); }
   }
   async function remove(id: string) {
     if (!session) return;
@@ -293,7 +302,7 @@ export default function PracticeApp({
   const composer = (
     <SharedComposer
       settings={settings}
-      onSettings={setSettings}
+      onSettings={updateSettings}
       prompt={prompt}
       onPrompt={setPrompt}
       onSubmit={() => void submit()}
@@ -314,6 +323,10 @@ export default function PracticeApp({
     />
   );
   return (
+    <AgentWorkbench onUpload={upload} attachments={session?.resources || []} agent="practice" ready={ready} busy={busy} job={job} historyLabel="限时练习历史"
+      onResources={() => setModal("resources")} onHistory={() => void openHistory()}
+      onNew={reset} onHome={() => (busy ? setHomeRequested(true) : reset())}
+      onAgentChange={onAgentChange}>
     <div className={"app tp-app " + (conversation ? "conversation-page" : "")}>
       {!conversation ? (
         <AgentHomeHeader
@@ -366,6 +379,7 @@ export default function PracticeApp({
               </button>
             )}
             <ConversationView
+              messages={session.messages}
               request={
                 [...session.messages].reverse().find((m) => m.role === "user")
                   ?.content || "请根据本课内容生成限时练习。"
@@ -434,14 +448,7 @@ export default function PracticeApp({
                 onResume={() => setHomeRequested(false)}
               />
             )}
-            <LessonToolbar
-              settings={settings}
-              onSettings={setSettings}
-              onResources={() => setModal("resources")}
-              busy={busy || restoring}
-              prefix="限时练习"
-              uploadCount={session?.resources.length || 0}
-            />
+
             {composer}
             <AppliedOptions
               optimized={
@@ -489,6 +496,7 @@ export default function PracticeApp({
       )}
       {modal === "history" && (
         <Modal
+          placement="sidebar"
           title="历史限时练习"
           onClose={() => setModal(null)}
           className="tp-history"
@@ -523,5 +531,6 @@ export default function PracticeApp({
         </Modal>
       )}
     </div>
+    </AgentWorkbench>
   );
 }

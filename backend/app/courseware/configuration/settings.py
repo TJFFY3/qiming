@@ -1,4 +1,4 @@
-"""【配置适配·互动课件】从基础配置解析课件专用参数，保持 Agent 配置独立。"""
+"""【配置适配·互动课件】从基础配置解析课件专用参数，知识库范围统一沿用公共配置。"""
 
 import copy
 import importlib
@@ -7,6 +7,8 @@ FIELDS = {
     "fastgpt_url",
     "fastgpt_key",
     "fastgpt_app_id",
+    "workflow_app_id",
+    "repo_label_config",
     "datasets",
     "model_provider",
     "model_url",
@@ -34,4 +36,6 @@ def resolve_settings(base):
         if name not in FIELDS:
             raise ValueError("未知互动课件配置字段：" + name)
         setattr(result, name, value)
+    # 三个 Agent 共用知识库，忽略历史独立配置中的 datasets。
+    result.datasets = copy.deepcopy(base.datasets)
     return result

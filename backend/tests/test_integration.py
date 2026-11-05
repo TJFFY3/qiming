@@ -80,7 +80,7 @@ def test_http_generation_review_revision_and_download(tmp_path):
         )
 
     with TestClient(create_app(settings, factory)) as client:
-        sid = client.post("/api/sessions", json={}).json()["id"]
+        sid = client.post("/api/sessions", json={"chapter":"第三节 氧化还原反应"}).json()["id"]
         # Source verification is optional: the first request already creates a downloadable version.
         job = client.post(
             f"/api/sessions/{sid}/generate", json={"prompt": "设计导学案"}

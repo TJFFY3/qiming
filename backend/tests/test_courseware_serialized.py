@@ -47,7 +47,7 @@ def test_serialized_equations_cannot_hide_unbalanced_atoms_or_bad_schema(tmp_pat
 def test_serialized_unbalanced_reaction_is_repaired_by_model_before_publication(tmp_path):
     app, requests = app_for(tmp_path, [example('Cu + O2 ', ' CuO'), example()])
     with TestClient(app) as c:
-        sid = c.post(PREFIX+'/sessions', json={}).json()['id']
+        sid = c.post(PREFIX+'/sessions', json={"chapter":"第三节 氧化还原反应"}).json()['id']
         j = c.post(f'{PREFIX}/sessions/{sid}/generate', json={'prompt':'课件'}).json()
         done = c.get(PREFIX+'/jobs/'+j['id']).json()
         assert done['status'] == 'completed'
@@ -76,7 +76,7 @@ def test_small_condition_exception_does_not_allow_small_body_text(tmp_path):
 
 def test_history_preview_and_download_repair_serialized_arrays_without_editing_original(tmp_path):
     with TestClient(app_for(tmp_path,[example()])[0]) as c:
-        sid=c.post(PREFIX+'/sessions',json={}).json()['id']
+        sid=c.post(PREFIX+'/sessions',json={"chapter":"第三节 氧化还原反应"}).json()['id']
         j=c.post(f'{PREFIX}/sessions/{sid}/generate',json={'prompt':'课件'}).json()
         vid=c.get(PREFIX+'/jobs/'+j['id']).json()['version_id']
         import sqlite3

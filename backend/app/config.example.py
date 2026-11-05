@@ -16,7 +16,9 @@ class Settings:
         ]
     )
     model_provider: str = "openai"  # openai 或 fastgpt
-    fastgpt_app_id: str = ""
+    fastgpt_app_id: str = ""  # 历史配置，新的生成链路使用 workflow_app_id
+    workflow_app_id: str = "6ae34b10b1b18f9bb876d8ac"
+    repo_label_config: dict = field(default_factory=dict)  # 工作流知识库标签过滤配置
     model_url: str = ""  # OpenAI 兼容服务，例如 https://model.example.com/v1
     model_key: str = ""
     model: str = ""

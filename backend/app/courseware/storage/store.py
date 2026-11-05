@@ -52,6 +52,13 @@ class CoursewareStore:
         return json.loads(row[0])
 
     def save(self, db, kind, value):
+        if kind == "job":
+            from backend.app.shared.tasks.timing import record_job_timing
+            try:
+                previous = self.read(db, kind, value["id"])
+            except KeyError:
+                previous = None
+            record_job_timing(value, previous, now())
         db.execute(
             "INSERT OR REPLACE INTO records VALUES (?,?,?)",
             (kind, value["id"], json.dumps(value, ensure_ascii=False)),

@@ -1,5 +1,7 @@
 """【流程编排·互动课件】串联知识库、模型、逐页修订规则与 PPTX 工具，成功后保存版本。"""
 
+from backend.app.shared.workflow.binding import generate as workflow_generate
+
 import hashlib
 import json
 import re
@@ -44,7 +46,8 @@ class CoursewarePipeline:
             # 【资料准备】合并版本来源、知识库召回和本课上传资料。
             sources = list(baseline["sources"]) if baseline else []
             if (
-                self.settings.fastgpt_url
+                self.retriever is not None
+                and self.settings.fastgpt_url
                 and self.settings.fastgpt_key
                 and self.settings.datasets
             ):
@@ -93,7 +96,11 @@ class CoursewarePipeline:
             for attempt in range(3):
                 received_result = False
                 try:
-                    result = self.model.generate_json(messages)
+                    result = workflow_generate(
+                        self.model, messages, agent_category="互动课件",
+                        teacher_settings=settings, prompt=request["prompt"],
+                        operation="微调" if baseline else "初始化", sources=sources,
+                    )
                     received_result = True
                     if not assembling:
                         self.store.stage(jid, "装配课件、最终方程式校验与版式检查")

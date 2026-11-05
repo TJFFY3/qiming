@@ -10,7 +10,9 @@ import {
 } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import App from "./App";
-import { defaultSettings } from "./agents/study-guide/services/api";
+import { defaultSettings as emptySettings } from "./agents/study-guide/services/api";
+// 历史会话已有选定章节，不依赖新建草稿的空目录初始状态。
+const defaultSettings = () => ({...emptySettings(), chapter:"第三节 氧化还原反应"});
 
 afterEach(() => {
   cleanup();
@@ -43,6 +45,7 @@ test("terminal job refreshes session even when the session response is delayed",
     "fetch",
     vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第三节 氧化还原反应"]});
       if (url.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
       if (url.endsWith("/jobs/job"))
@@ -158,6 +161,7 @@ test("retry of a failed regeneration remains generation when an earlier version 
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第三节 氧化还原反应"]});
       calls.push((init?.method || "GET") + " " + url);
       if (url.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
@@ -189,7 +193,7 @@ test("generation does not require a source-verification opt-in", async () => {
   ).toBeNull();
 });
 
-test.each(["新建备课", "返回备课"])(
+test.each(["新建任务", "启鸣 AI 首页"])(
   "%s starts a fresh conversation with default optimization and no old prompt",
   async (entry) => {
     localStorage.setItem("qiming-session", "old-session");
@@ -321,6 +325,7 @@ test.each(["queued", "running"])(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第三节 氧化还原反应"]});
         requests.push((init?.method || "GET") + " " + url);
         if (url.endsWith("/health"))
           return Response.json({ ready: true, missing: [] });
@@ -342,7 +347,7 @@ test.each(["queued", "running"])(
       }),
     );
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "返回备课" }));
+    fireEvent.click(await screen.findByRole("button", { name: "启鸣 AI 首页" }));
     expect(screen.getByRole("tab", { name: "互动课件" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "查看任务" })).toBeTruthy();
     expect(localStorage.getItem("qiming-session")).toBe("active-guide");
@@ -401,6 +406,7 @@ test("returning home while submission is pending is not undone by its delayed re
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/library/chapters")) return Response.json({chapters:["第三节 氧化还原反应"]});
       if (url.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
       if (url.endsWith("/generate") && init?.method === "POST") {
@@ -416,13 +422,13 @@ test("returning home while submission is pending is not undone by its delayed re
   fireEvent.change(prompt, { target: { value: "重新生成导学案" } });
   fireEvent.click(screen.getByRole("button", { name: "提交修改" }));
   await waitFor(() => expect(started).toBe(true));
-  fireEvent.click(screen.getByRole("button", { name: "返回备课" }));
+  fireEvent.click(screen.getByRole("button", { name: "启鸣 AI 首页" }));
   await act(async () => {
     accepted = true;
     release(Response.json(job));
   });
   expect(screen.getByRole("tab", { name: "互动课件" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "查看任务" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "返回备课" })).toBeNull();
+  expect(screen.queryByRole("textbox", { name: "继续修改导学案" })).toBeNull();
   expect(localStorage.getItem("qiming-session")).toBe("pending-guide");
 });

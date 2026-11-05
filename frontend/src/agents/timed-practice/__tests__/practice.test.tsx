@@ -97,6 +97,7 @@ test("practice only uses its own namespace and does not restore guide session", 
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       calls.push(path);
+      if (path.includes("/library/chapters")) return Response.json({chapters:["第一章 物质及其变化"]});
       if (path.endsWith("/health"))
         return Response.json({ ready: true, missing: [] });
       if (path.endsWith("/sessions") && init?.method === "POST")
@@ -138,7 +139,7 @@ test("practice only uses its own namespace and does not restore guide session", 
       "/api/timed-practice/sessions/practice-session/generate",
     ),
   );
-  expect(calls.every((p) => p.startsWith("/api/timed-practice/"))).toBe(true);
+  expect(calls.every((p) => p.startsWith("/api/timed-practice/") || p === "/api/library/subjects" || p.startsWith("/api/library/chapters?"))).toBe(true);
   expect(localStorage.getItem("qiming-session")).toBe("guide-session");
   expect(localStorage.getItem("qiming-practice-session")).toBe(
     "practice-session",

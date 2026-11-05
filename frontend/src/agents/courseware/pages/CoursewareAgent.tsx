@@ -1,3 +1,4 @@
+import AgentWorkbench from "../../../components/AgentWorkbench";
 /** 【界面编排·互动课件】管理课件会话、任务轮询、资料与版本交互。 */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, Library, Presentation, Sparkles, X } from "lucide-react";
@@ -20,7 +21,6 @@ import "../styles/courseware.css";
 import {
   AgentHomeHeader,
   AgentHero,
-  LessonToolbar,
   AgentHomeFooter,
   AppliedOptions,
 } from "../../../components/AgentHome";
@@ -92,7 +92,13 @@ export default function CoursewareAgent({
   const locked = useRef(false),
     creating = useRef<Promise<Session> | null>(null),
     sessionRef = useRef<Session | null>(null);
+  const updateSettings = (next: CoursewareSettings) => {
+    if ((next.subject || "化学") !== (settings.subject || "化学")) { resetSession(true); setPrompt(""); }
+    setSettings(next);
+  };
+  const [uploading, setUploading] = useState(false);
   const busy =
+    uploading ||
     restoring ||
     sending ||
     job?.status === "queued" ||
@@ -333,12 +339,16 @@ export default function CoursewareAgent({
   };
   // 【资料接口】本课上传资料由后端提取，前端只管理列表与交互。
   const upload = async (file: File, category: string) => {
-    const s = await ensureSession();
-    const body = new FormData();
-    body.append("file", file);
-    body.append("category", category);
-    await request(`/sessions/${s.id}/resources`, { method: "POST", body });
-    remember(await request<Session>("/sessions/" + s.id));
+    if (busy) return;
+    setUploading(true);
+    try {
+      const s = await ensureSession();
+      const body = new FormData();
+      body.append("file", file);
+      body.append("category", category);
+      await request(`/sessions/${s.id}/resources`, { method: "POST", body });
+      remember(await request<Session>("/sessions/" + s.id));
+    } finally { setUploading(false); }
   };
   const deleteResource = async (id: string) => {
     if (!session) return;
@@ -351,7 +361,7 @@ export default function CoursewareAgent({
   const composer = (
     <Composer
       settings={settings}
-      onSettings={setSettings}
+      onSettings={updateSettings}
       prompt={prompt}
       onPrompt={setPrompt}
       onOptimize={() => setModal("optimize")}
@@ -364,6 +374,10 @@ export default function CoursewareAgent({
     />
   );
   return (
+    <AgentWorkbench onUpload={upload} attachments={session?.resources || []} agent="courseware" ready={ready} busy={busy} job={job} historyLabel="课件历史备课"
+      onResources={() => setModal("resources")} onHistory={() => void openHistory()}
+      onNew={newSession} onHome={() => { if (busy) { returnHomeRef.current = true; setPage("home"); } else resetSession(true); }}
+      onAgentChange={(kind) => { if (kind === "guide") onGuide(); else if (kind === "practice") onPractice?.(); }}>
     <div
       className={
         "app cw-agent " + (page === "conversation" ? "conversation-page" : "")
@@ -431,14 +445,7 @@ export default function CoursewareAgent({
                 }}
               />
             )}
-            <LessonToolbar
-              settings={settings}
-              onSettings={setSettings}
-              onResources={() => setModal("resources")}
-              busy={busy || restoring}
-              prefix="课件"
-              uploadCount={session?.resources.length || 0}
-            />
+
             {composer}
             <AppliedOptions
               optimized={
@@ -464,6 +471,7 @@ export default function CoursewareAgent({
           )}
           {session && (
             <ConversationView
+              messages={session.messages}
               request={
                 [...session.messages].reverse().find((m) => m.role === "user")
                   ?.content || "请根据本课内容生成互动课件。"
@@ -531,7 +539,7 @@ export default function CoursewareAgent({
         />
       )}
       {modal === "history" && (
-        <Modal title="互动课件历史" onClose={close} className="history-modal">
+        <Modal placement="sidebar" title="互动课件历史" onClose={close} className="history-modal">
           <div className="modal-scroll">
             {history.length ? (
               history.map((s) => (
@@ -560,5 +568,6 @@ export default function CoursewareAgent({
         </Modal>
       )}
     </div>
+    </AgentWorkbench>
   );
 }

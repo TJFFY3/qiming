@@ -46,10 +46,10 @@ class Settings:
 
 settings = Settings(
     fastgpt_url="https://cloud.fastgpt.cn/api",
-    fastgpt_key="fastgpt-fxME2xsve6FXRGRUIif67BdtHW9k4Tj4EVSCTfke26ug8STqSQKSGnFZH",
+    fastgpt_key='fastgpt-w64kxFwOZmBaaHIlgL99AtF5Y8XPvcFHQDn0WcmVPmJUpmd1KGxpVwX',
     datasets=[
         {
-            "id": "6ad1e71de8c9ba1dd141b306",
+            "id": "6ae33c6725e47f286a55a6df",
             "category": "reference",
             "name": "高中化学教学三件套智能生成与教学应用验证",
             "type": "folder",
