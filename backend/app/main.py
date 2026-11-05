@@ -54,7 +54,7 @@ def create_app(settings=None, pipeline_factory=None, courseware_factory=None, pr
         courseware_store.recover_jobs()
         yield
 
-    app = FastAPI(title="启鸣 AI · 化学导学案", lifespan=lifespan)
+    app = FastAPI(title="Fast AI· 化学导学案", lifespan=lifespan)
     app.state.store = store
     app.state.pipeline = pipeline
     app.state.practice_store = practice_store

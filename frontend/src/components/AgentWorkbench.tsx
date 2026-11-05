@@ -116,7 +116,7 @@ export default function AgentWorkbench({
           <button className={pane === "preview" ? "active" : ""} aria-label="查看文件预览" onClick={() => { showPreview(); setMenuOpen(false); }}><FileText size={16} />文件预览</button>
         </div>
         <aside className="workbench-sidebar" aria-label="工作台菜单">
-          <button className="workbench-brand" aria-label="启鸣 AI 首页" onClick={onHome}><img src={brandLogo} alt="品牌标识" /></button>
+          <button className="workbench-brand" aria-label="Fast AI首页" onClick={onHome}><img src={brandLogo} alt="品牌标识" /></button>
           <button className="workbench-new" onClick={startNew} disabled={busy}><Plus size={18} />新建任务</button>
           <div className="workbench-library-nav">
             <button aria-label="资料库" onClick={() => openPanel(onResources)}><Library size={18} /><span>知识库<small>资料库与本课资源</small></span></button>

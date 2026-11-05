@@ -215,7 +215,7 @@ test.each(agents.slice(1))(
   "$product can leave its busy details without losing the active session",
   async (agent) => {
     await show(agent, "running");
-    fireEvent.click(screen.getByRole("button", { name: "启鸣 AI 首页" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fast AI首页" }));
     expect(screen.getByRole("tab", { name: "导学案" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "查看任务" })).toBeTruthy();
     expect(localStorage.getItem(agent.key)).toBe("detail");
@@ -233,7 +233,7 @@ test.each(agents)(
   "$product completed details return to a fresh entry without rebinding the finished session",
   async (agent) => {
     await show(agent, "completed", true);
-    fireEvent.click(screen.getByRole("button", { name: "启鸣 AI 首页" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fast AI首页" }));
     expect(localStorage.getItem(agent.key)).toBeNull();
     const label =
       agent.id === "guide"
